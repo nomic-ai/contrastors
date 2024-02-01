@@ -1,0 +1,49 @@
+train_args:
+  num_epochs: 1 
+  learning_rate: 2.0e-4
+  weight_decay: 0.01
+  warmup_steps: 700
+  cooldown_steps: null
+  checkpoint: null
+  wandb: false
+  wandb_project_name: "text-contrastors"
+  wandb_entity: "gpt4all"
+  log_grads_every: 100
+  log_lr_every: 10
+  save_every: 2500 
+  chunk_size: 64
+  output_dir: "ckpts/nomic-embed-text-v1-unsupervised"
+  # if using deepspeed, this will be ignored
+  schedule_type: "inverse_sqrt"
+  max_grad_norm: 1.0
+  adam_beta1: 0.9
+  adam_beta2: 0.999
+  grad_cache: true
+  loss_fn: "clip"
+  use_fp8: false
+  logit_scale: 50
+  clamp_logits: false
+  logit_max: 100
+
+model_args:
+  seq_len: 2048
+  rotary_emb_fraction: 0.0
+  pad_vocab_to_multiple_of: 64 
+  use_rms_norm: false
+  activation_function: "gelu"
+  pooling: "mean"
+  encoder: true
+  add_prefix: true
+  tokenizer_name: "bert-base-uncased"
+  model_name: "nomic-ai/nomic-bert-2048"
+  qkv_proj_bias: false
+  mlp_fc1_bias: false
+  mlp_fc2_bias: false
+
+data_args:
+  input_shards: "configs/data/contrastive_pretrain.yaml"
+  workers: 0 
+  batch_size: 16384
+  seed: 42
+  shuffle: false
+  download: true
