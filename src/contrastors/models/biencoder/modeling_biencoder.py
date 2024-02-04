@@ -80,8 +80,8 @@ class BiEncoder(PreTrainedModel):
                 self.trunk = DecoderModel.from_pretrained(
                     config.model_name, config=model_config, safe_serialization=True
                 )
-                tokenzier = AutoTokenizer.from_pretrained(config.model_name)
-                self.eos_token_id = tokenzier.eos_token_id
+                tokenizer = AutoTokenizer.from_pretrained(config.model_name)
+                self.eos_token_id = tokenizer.eos_token_id
             else:
                 self.trunk = NomicBertModel.from_pretrained(
                     config.model_name,
