@@ -21,11 +21,13 @@ train_args:
   grad_cache: true
   loss_fn: "clip"
   use_fp8: false
-  logit_scale: 50
   clamp_logits: false
   logit_max: 100
 
 model_args:
+  logit_scale: 50
+  trainable_logit_scale: false
+  model_type: "encoder"
   seq_len: 2048
   rotary_emb_fraction: 0.0
   pad_vocab_to_multiple_of: 64 
@@ -40,7 +42,7 @@ model_args:
   mlp_fc1_bias: false
   mlp_fc2_bias: false
 
-data_args:
+contrastive_data_args:
   input_shards: "configs/data/contrastive_pretrain.yaml"
   workers: 0 
   batch_size: 16384

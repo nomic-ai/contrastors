@@ -9,6 +9,10 @@ def gather(t):
     # like: https://github.com/mlfoundations/open_clip/issues/616
     if not dist.is_initialized() or dist.get_world_size() == 1:
         return t
+
+    if t.ndim == 0:
+        t = t.unsqueeze(0)
+
     gathered = [torch.empty_like(t) for _ in range(dist.get_world_size())]
     dist.all_gather(gathered, t)
     gathered[dist.get_rank()] = t
@@ -36,3 +40,28 @@ def all_gather_object(obj):
             flattened_objects.append(obj)
 
     return flattened_objects
+
+
+def print_rank_zero(msg):
+    if dist.is_initialized():
+        if dist.get_rank() == 0:
+            print(msg)
+
+
+def print_in_order(msg):
+    if dist.is_initialized():
+        for i in range(dist.get_world_size()):
+            if i == dist.get_rank():
+                print(msg)
+            dist.barrier()
+    else:
+        print(msg)
+
+
+class DistributedWandbTracker:
+    def __init__(self, tracker):
+        self.tracker = tracker
+
+    def log(self, metrics, **kwargs):
+        if dist.get_rank() == 0:
+            self.tracker.log(metrics, **kwargs)

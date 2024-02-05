@@ -5,8 +5,7 @@ import torch.nn as nn
 from grad_cache import GradCache
 from transformers import AutoModel, AutoTokenizer
 
-from contrastors.loss import clip_loss
-from contrastors.loss import grad_cache_loss_biencoder as grad_cache_loss
+from contrastors.loss import clip_loss, grad_cache_loss
 
 # NOTE this requires you to pip install grad cache: https://github.com/luyug/GradCache/tree/main
 # TODO: loss is the same but gradients aren't -> they are like 2x the other loss
@@ -54,7 +53,7 @@ if __name__ == "__main__":
     encoder = AutoModel.from_pretrained("bert-base-uncased").to(device)
     model = ModelWrapper(encoder)
     first = nn.parallel.DistributedDataParallel(model, device_ids=[rank], output_device=rank)
-    scale = nn.parallel.DistributedDataParallel(LogitScale(1 / 0.07).to(device))
+    scale = 1 / 0.07
 
     # NOTE! If using grad cache and > 1 gpu, you need to do the gather for the clip loss function yourself
     gc = GradCache(models=[first, first], chunk_sizes=2, loss_fn=clip_loss, get_rep_fn=lambda v: v["embedding"])
@@ -72,21 +71,26 @@ if __name__ == "__main__":
     xx = tokenizer(query, return_tensors='pt', padding=True).to(device)
     yy = tokenizer(document, return_tensors='pt', padding=True).to(device)
 
-    inputs = {
-        "query_input_ids": xx["input_ids"],
-        "query_attention_mask": xx["attention_mask"],
-        "query_token_type_ids": xx["token_type_ids"],
-        "document_input_ids": yy["input_ids"],
-        "document_attention_mask": yy["attention_mask"],
-        "document_token_type_ids": yy["token_type_ids"],
+    query_inputs = {
+        "input_ids": xx["input_ids"],
+        "attention_mask": xx["attention_mask"],
+        "token_type_ids": xx["token_type_ids"],
+    }
+
+    document_inputs = {
+        "input_ids": yy["input_ids"],
+        "attention_mask": yy["attention_mask"],
+        "token_type_ids": yy["token_type_ids"],
     }
 
     encoder = AutoModel.from_pretrained("bert-base-uncased").to(device)
     model = nn.parallel.DistributedDataParallel(
         ModelWrapper(encoder), device_ids=[rank], output_device=rank, broadcast_buffers=False
     )
-    scale = nn.parallel.DistributedDataParallel(LogitScale(1 / 0.07).to(device))
-    our_loss = grad_cache_loss(model, inputs, chunk_size=2, logit_scale=scale)
+    scale = 1 / 0.07
+    our_loss = grad_cache_loss(
+        tower1=model, tower2=model, t1_inputs=query_inputs, t2_inputs=document_inputs, chunk_size=2, logit_scale=scale
+    )
 
     print_rank0("Our GradCache loss")
     print_rank0(f"Loss: {our_loss}")
@@ -102,7 +106,7 @@ if __name__ == "__main__":
     model = nn.parallel.DistributedDataParallel(
         ModelWrapper(encoder), device_ids=[rank], output_device=rank, broadcast_buffers=False
     )
-    scale = nn.parallel.DistributedDataParallel(LogitScale(1 / 0.07).to(device))
+    scale = 1 / 0.07
 
     query_emb = model(**xx)["embedding"]
     doc_emb = model(**yy)["embedding"]

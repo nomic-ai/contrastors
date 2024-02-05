@@ -16,6 +16,7 @@ import torch.nn.functional as F
 from einops import rearrange
 from flash_attn.bert_padding import index_first_axis, pad_input, unpad_input
 from flash_attn.ops.rms_norm import RMSNorm, dropout_add_rms_norm, rms_norm
+from safetensors.torch import load_file as safe_load_file
 from transformers import GPT2Config, PreTrainedModel
 from transformers.models.bert.modeling_bert import (
     BaseModelOutputWithPoolingAndCrossAttentions,
@@ -112,7 +113,15 @@ class NomicBertPreTrainedModel(PreTrainedModel):
         # Assuming we know what we're doing when loading from disk
         # Prob a bad assumption but i'm tired and want to train this asap
         if os.path.exists(model_name):
-            state_dict = torch.load(f"{model_name}/pytorch_model.bin")
+            model_path = f"{model_name}/pytorch_model.bin"
+            if os.path.exists(model_path):
+                state_dict = torch.load(f"{model_name}/pytorch_model.bin")
+            else:
+                model_path = f"{model_name}/model.safetensors"
+                if not os.path.exists(model_path):
+                    raise ValueError(f"Model path {model_path} not found")
+                state_dict = safe_load_file(model_path)
+
             if ignore_mismatched_shapes:
                 state_dict = filter_shapes(state_dict, model)
             load_return = model.load_state_dict(state_dict, strict=False)

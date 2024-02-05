@@ -1,0 +1,37 @@
+train_args:
+  num_epochs: 10 
+  learning_rate: 3.0e-5
+  adam_beta1: 0.9
+  adam_beta2: 0.98
+  weight_decay: 1.0e-6
+  eps: 1e-6
+  max_grad_norm: 0.0
+  schedule_type: "linear"
+
+  warmup_steps: null
+  warmup_pct: 0.06
+  cooldown_steps: null
+  checkpoint: null
+
+  wandb: true
+  wandb_project_name: "bert"
+  wandb_entity: "gpt4all"
+  wandb_run_name: "glue-trainer-test"
+
+  log_grads_every: 100
+  log_lr_every: 10
+  save_every: -1
+  eval_strategy: "epochs"
+
+model_args:
+  model_type: "glue"
+  seq_len: 128
+  tokenizer_name: "bert-base-uncased"
+  pretrained: "ckpts/mlm-trainer/epoch_0_model"
+
+mlm_data_args:
+  task_name: "cola"
+  workers: -1 
+  batch_size: 16
+  seed: 42
+  shuffle: true

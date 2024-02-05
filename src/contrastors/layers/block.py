@@ -8,8 +8,8 @@ from flash_attn.ops.layer_norm import dropout_add_layer_norm, dropout_add_layer_
 from flash_attn.ops.rms_norm import RMSNorm, dropout_add_rms_norm, dropout_add_rms_norm_parallel_residual
 from torchvision.ops import StochasticDepth
 
-from contrastors.layers.mlp import MLP, GatedMLP
 from contrastors.layers.attention import FlashAttention
+from contrastors.layers.mlp import MLP, GatedMLP
 
 
 class ParallelBlock(nn.Module):

@@ -10,10 +10,12 @@ from contrastors.models.decoder.open_lm import open_lm_config_to_gpt2_config
 from contrastors.models.encoder import NomicBertModel
 
 
-class LogitScale(PreTrainedModel):
+class LogitScale(nn.Module):
     def __init__(self, config):
-        super().__init__(config)
-        self.logit_scale = nn.Parameter(torch.ones([]) * np.log(config.logit_scale))
+        super().__init__()
+        self.logit_scale = nn.Parameter(
+            torch.ones([]) * np.log(config.logit_scale), requires_grad=config.trainable_logit_scale
+        )
 
     def forward(self, x):
         return x * self.logit_scale.exp()
