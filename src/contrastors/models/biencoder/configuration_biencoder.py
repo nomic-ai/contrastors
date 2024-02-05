@@ -11,12 +11,14 @@ class BiEncoderConfig(PretrainedConfig):
         pooling="last",
         encoder=False,
         freeze=False,
+        trainable_logit_scale=False,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.model_name = model_name
         self.projection_dim = projection_dim
         self.logit_scale = logit_scale
+        self.trainable_logit_scale = trainable_logit_scale
         self.use_fused_kernels = use_fused_kernels
         self.pooling = pooling
         self.encoder = encoder

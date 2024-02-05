@@ -15,6 +15,8 @@ from torch.utils.data import DataLoader, Dataset, DistributedSampler, IterableDa
 from tqdm import tqdm
 from webdataset.tariterators import base_plus_ext
 
+from contrastors.distributed import print_in_order, print_rank_zero
+
 MAPPED_NAMES = {"paired": ["query", "document"], "self": ["query"], "triplet": ["query", "document", "negative"]}
 KEY2PREFIX = {"query": "query", "document": "passage", "negative": "passage"}
 S3_COMMAND = "pipe: aws s3 cp --endpoint-url https://9fa58365a1a3d032127970d0bd9a1290.r2.cloudflarestorage.com/ --cli-read-timeout=300 {s3_uri} -"
@@ -28,22 +30,6 @@ def log_and_continue(exn):
 
 def collate_fn(batch):
     return batch[0]
-
-
-def print_in_order(msg):
-    if dist.is_initialized():
-        for i in range(dist.get_world_size()):
-            if i == dist.get_rank():
-                print(msg)
-            dist.barrier()
-    else:
-        print(msg)
-
-
-def print_rank_zero(msg):
-    if dist.is_initialized():
-        if dist.get_rank() == 0:
-            print(msg)
 
 
 class StreamingShardDataset(IterableDataset):

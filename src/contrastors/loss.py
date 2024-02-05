@@ -1,25 +1,13 @@
 from contextlib import nullcontext
+from functools import partial
 
 import pandas as pd
 import torch
 import torch.distributed as dist
 import torch.nn.functional as F
+import wandb
 
 from contrastors.distributed import gather, gather_dict
-
-try:
-    import transformer_engine.pytorch as te
-    from transformer_engine.common.recipe import DelayedScaling, Format
-except:
-    te = None
-    Format = None
-    DelayedScaling = None
-
-from functools import partial
-
-import matplotlib.pyplot as plt
-import seaborn as sns
-import wandb
 
 
 def clip_loss(
@@ -32,7 +20,7 @@ def clip_loss(
     kd_scores=None,
     alpha=0.2,
     tokenizer=None,
-    accelerator=None,
+    tracker=None,
     inputs=None,
     dataset="",
     bidirectional=False,
@@ -96,9 +84,7 @@ def clip_loss(
             log_labels = torch.log_softmax(kd_scores, dim=1)
             kl_loss = F.kl_div(log_scores, log_labels, reduction="batchmean", log_target=True)
 
-            accelerator.log(
-                {"kd_loss": kl_loss.detach().cpu().item(), "ce_loss": loss.detach().cpu().item()}, step=step
-            )
+            tracker.log({"kd_loss": kl_loss.detach().cpu().item(), "ce_loss": loss.detach().cpu().item()}, step=step)
 
             # sync to cuda to gather then detach
             inputs = gather_dict({k: v.to(device) for k, v in inputs.items()})
@@ -125,24 +111,24 @@ def clip_loss(
                 data[f"softmax_true_ce_score_negative_{neg}"] = [true[neg + 1] for true in softmax_true_ce_scores]
 
             table = wandb.Table(dataframe=pd.DataFrame(data))
-            accelerator.log({"cross_encoder_tabe": table}, step=step)
+            tracker.log({"cross_encoder_tabe": table}, step=step)
 
             loss = loss * alpha + kl_loss
 
     else:
-        similarity_query_document = torch.matmul(query, document.T) * logit_scale
+        similarity_query_document = logit_scale(torch.matmul(query, document.T))
         labels = labels * (document.size(0) // query.size(0))
         if bidirectional:
-            similarity_document_query = torch.matmul(document, query.T) * logit_scale
+            similarity_document_query = logit_scale(torch.matmul(document, query.T))
             loss = (
                 F.cross_entropy(similarity_query_document, labels) + F.cross_entropy(similarity_document_query, labels)
             ) * dist.get_world_size()
         else:
             loss = F.cross_entropy(similarity_query_document, labels) * dist.get_world_size()
 
-    if accelerator is not None:
+    if tracker is not None:
         accuracy = (similarity_query_document.argmax(dim=1) == labels).float().mean()
-        accelerator.log({f"accuracy_{dataset}": accuracy.detach().cpu().item()}, step=step)
+        tracker.log({f"accuracy_{dataset}": accuracy.detach().cpu().item()}, step=step)
 
     return loss
 
@@ -209,52 +195,40 @@ def gte_loss(query: torch.Tensor, document: torch.Tensor, logit_scale, gather_en
     return loss
 
 
-def get_chunked_embeddings(model, chunks, fp8_recipe=None):
+def get_chunked_embeddings(model, chunks):
     embeddings = []
-    if fp8_recipe is not None:
-        context = partial(te.fp8_autocast, enabled=True, fp8_recipe=fp8_recipe)
-    else:
-        context = nullcontext
 
     with torch.no_grad():
         for chunk in chunks:
-            with context():
-                emb = model(**chunk)
+            emb = model(**chunk)
             embeddings.append(emb["embedding"])
 
     return torch.concat(embeddings, dim=0)
 
 
-def accumulate_gradients(model, inputs, cache, fp8_recipe=None):
+def accumulate_gradients(model, inputs, cache):
     length = len(inputs)
     sync_contexts = [model.no_sync for _ in range(length - 1)] + [nullcontext]
 
-    if fp8_recipe is not None:
-        precision_context = partial(te.fp8_autocast, enabled=True, fp8_recipe=fp8_recipe)
-    else:
-        precision_context = nullcontext
-
     for inp, grad, sync_context in zip(inputs, cache, sync_contexts):
         with sync_context():
-            with precision_context():
-                embedding = model(**inp)["embedding"]
+            embedding = model(**inp)["embedding"]
             surrogate = torch.dot(embedding.flatten(), grad.flatten())
             surrogate.backward()
 
 
-def cache_loss(model, query_embeddings, document_embeddings, logit_scale, loss_fn_name="clip"):
+def cache_loss(tower1, tower2, query_embeddings, document_embeddings, logit_scale, bidirectional=False):
     # only require grad for embedding / representation
     query_embs = query_embeddings.detach().requires_grad_()
     document_embs = document_embeddings.detach().requires_grad_()
 
-    if loss_fn_name == "clip":
-        loss_fn = clip_loss
-    elif loss_fn_name == "gte":
-        loss_fn = gte_loss
+    no_tower1_sync = tower1.no_sync if tower1.training else nullcontext
+    no_tower2_sync = tower2.no_sync if tower2.training else nullcontext
 
-    with model.no_sync():
-        loss = loss_fn(query_embs, document_embs, logit_scale, gather_enabled=True)
-        loss.backward()
+    with no_tower1_sync():
+        with no_tower2_sync():
+            loss = clip_loss(query_embs, document_embs, logit_scale, gather_enabled=True, bidirectional=bidirectional)
+            loss.backward()
 
     query_cache = query_embs.grad
     document_cache = document_embs.grad
@@ -262,130 +236,30 @@ def cache_loss(model, query_embeddings, document_embeddings, logit_scale, loss_f
     return query_cache, document_cache, loss.detach()
 
 
-def grad_cache_loss_biencoder(model, inputs, chunk_size, logit_scale, use_fp8=False, loss_fn_name="clip"):
-    chunked_query_inputs = []
-    chunked_document_inputs = []
+def grad_cache_loss(tower1, t1_inputs, tower2, t2_inputs, chunk_size, logit_scale, bidirectional=False):
+    total_bs = t1_inputs["input_ids"].shape[0]
+    chunked_queries = []
+    chunked_documents = []
 
-    query_bs = inputs["query_input_ids"].shape[0]
-    for chunk_start in range(0, query_bs, chunk_size):
-        chunk_end = min(query_bs, chunk_start + chunk_size)
-        query_chunk = {
-            k.replace("query_", ""): v[chunk_start:chunk_end] for k, v in inputs.items() if k.startswith("query_")
-        }
-        chunked_query_inputs.append(query_chunk)
+    for chunk_start in range(0, total_bs, chunk_size):
+        query_chunk = {k: v[chunk_start : chunk_start + chunk_size] for k, v in t1_inputs.items()}
+        chunked_queries.append(query_chunk)
 
-    # we need to do this in case we have added hard negatives for the finetuning stage
-    document_bs = inputs["document_input_ids"].shape[0]
-    for chunk_start in range(0, document_bs, chunk_size):
-        chunk_end = min(document_bs, chunk_start + chunk_size)
-        document_chunk = {
-            k.replace("document_", ""): v[chunk_start:chunk_end] for k, v in inputs.items() if k.startswith("document_")
-        }
-        chunked_document_inputs.append(document_chunk)
+        document_chunk = {k: v[chunk_start : chunk_start + chunk_size] for k, v in t2_inputs.items()}
+        chunked_documents.append(document_chunk)
 
-    if use_fp8:
-        fp8_format = Format.HYBRID
-        fp8_recipe = DelayedScaling(
-            fp8_format=fp8_format,
-            amax_history_len=16,
-            amax_compute_algo="max",
-        )
-    else:
-        fp8_recipe = None
-
-    query_embs = get_chunked_embeddings(model, chunked_query_inputs, fp8_recipe=fp8_recipe)
-    document_embs = get_chunked_embeddings(model, chunked_document_inputs, fp8_recipe=fp8_recipe)
+    query_embs = get_chunked_embeddings(tower1, chunked_queries)
+    document_embs = get_chunked_embeddings(tower2, chunked_documents)
 
     query_cache, document_cache, loss = cache_loss(
-        model, query_embs, document_embs, logit_scale, loss_fn_name=loss_fn_name
+        tower1, tower2, query_embs, document_embs, logit_scale, bidirectional=bidirectional
     )
 
     chunked_query_cache = query_cache.split(chunk_size)
     chunked_document_cache = document_cache.split(chunk_size)
 
-    accumulate_gradients(model, chunked_query_inputs, chunked_query_cache)
-    accumulate_gradients(model, chunked_document_inputs, chunked_document_cache)
-
-    return loss
-
-
-def cache_loss_image_text(
-    text_model, text_embs, vision_model, vision_embs, logit_scale, loss_fn_name="clip", bidirectional=True
-):
-    # only require grad for embedding / representation
-    vision_embs = vision_embs.detach().requires_grad_()
-    text_embs = text_embs.detach().requires_grad_()
-
-    if loss_fn_name == "clip":
-        loss_fn = clip_loss
-    elif loss_fn_name == "gte":
-        loss_fn = gte_loss
-
-    no_text_sync = text_model.no_sync if hasattr(text_model, "no_sync") else nullcontext
-    no_vision_sync = vision_model.no_sync if hasattr(vision_model, "no_sync") else nullcontext
-
-    with no_text_sync():
-        with no_vision_sync():
-            loss = loss_fn(text_embs, vision_embs, logit_scale, gather_enabled=True, bidirectional=bidirectional)
-            loss.backward()
-
-    text_cache = text_embs.grad
-    vision_cache = vision_embs.grad
-
-    return text_cache, vision_cache, loss.detach()
-
-
-def grad_cache_loss_image_text(
-    text_model,
-    vision_model,
-    text_inputs,
-    vision_inputs,
-    chunk_size,
-    logit_scale,
-    use_fp8=False,
-    loss_fn_name="clip",
-    bidirectional=True,
-):
-    total_bs = text_inputs["input_ids"].shape[0]
-    chunked_text = []
-    chunked_vision = []
-
-    for chunk_start in range(0, total_bs, chunk_size):
-        text_chunk = {k: v[chunk_start : chunk_start + chunk_size] for k, v in text_inputs.items()}
-        chunked_text.append(text_chunk)
-
-        vision_chunk = {k: v[chunk_start : chunk_start + chunk_size] for k, v in vision_inputs.items()}
-        chunked_vision.append(vision_chunk)
-
-    if use_fp8:
-        fp8_format = Format.HYBRID
-        fp8_recipe = DelayedScaling(
-            fp8_format=fp8_format,
-            amax_history_len=16,
-            amax_compute_algo="max",
-        )
-    else:
-        fp8_recipe = None
-
-    text_embs = get_chunked_embeddings(text_model, chunked_text, fp8_recipe=fp8_recipe)
-    vision_embs = get_chunked_embeddings(vision_model, chunked_vision, fp8_recipe=fp8_recipe)
-
-    text_cache, vision_cache, loss = cache_loss_image_text(
-        text_model=text_model,
-        vision_model=vision_model,
-        vision_embs=vision_embs,
-        text_embs=text_embs,
-        logit_scale=logit_scale,
-        loss_fn_name=loss_fn_name,
-        bidirectional=bidirectional,
-    )
-
-    chunked_text_cache = text_cache.split(chunk_size)
-    accumulate_gradients(text_model, chunked_text, chunked_text_cache)
-
-    # in case second model is frozen, don't accumulate gradients
-    if hasattr(vision_model, "no_sync"):
-        chunked_vision_cache = vision_cache.split(chunk_size)
-        accumulate_gradients(vision_model, chunked_vision, chunked_vision_cache)
+    accumulate_gradients(tower1, chunked_queries, chunked_query_cache)
+    if tower2.training:
+        accumulate_gradients(tower2, chunked_documents, chunked_document_cache)
 
     return loss

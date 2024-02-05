@@ -33,7 +33,10 @@ setup(
     package_dir={'': 'src'},
     packages=find_packages(where='contrastors'),
     install_requires=requirements,
-    extras_require={"eval": ["openai", "tiktoken", "mteb[beir]"]},
+    extras_require={
+        "eval": ["openai", "tiktoken", "mteb[beir]", "multiprocess==0.70.15"],
+        "dev": ["pytest", "black", "isort"],
+    },
     include_package_data=True,
     python_requires='>=3.7',
 )

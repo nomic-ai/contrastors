@@ -12,7 +12,11 @@
 - Support for training on multiple GPUs
 - [GradCache](https://github.com/luyug/GradCache) support for training with large batch sizes in constrained memory environments
 - Huggingface Support for easy loading of common models (Pythia/GPTNeoX, BERT, etc.)
-- Masked Lanugage Modeling (MLM) Pretraining
+- Masked Language Modeling (MLM) Pretraining
+
+## Research
+
+* [Nomic Embed: Training a Reproducible Long Context Text Embedder](https://arxiv.org/abs/2402.01613) by Zach Nussbaum, Jack Morris, Andrei Mulyar, and Brandon Duderstadt
 
 ## Getting Started and Requirements
 
@@ -120,7 +124,7 @@ To train your own BERT from scratch (with all the optimizations) run
 
 ```bash
 cd src/contrastors
-accelerate launch --num_processes=8 --num_machines=1 --mixed_precision=bf16 --use_deepspeed --deepspeed_config_file=configs/deepspeed/ds_config.json train_mlm.py --config=configs/train/mlm.yaml
+deepspeed --num_gpus=8 train.py --config=configs/train/mlm.yaml --deepspeed_config_file=configs/deepspeed/ds_config.json --dtype=bf16
 ```
 
 ### Constrastive Pretraining and Finetuning
@@ -129,7 +133,7 @@ To launch an experiment run
 
 ```bash
 cd src/contrastors
-accelerate launch --num_processes=8 --num_machines=1 --mixed_precision=bf16 train_text_text.py --config=configs/train/contrastive_pretrain.yaml
+torchrun --nproc-per-node=8 train.py --config=configs/train/contrastive_pretrain.yaml --dtype=bf16
 ```
 
 This will train a bert model on all ~200M examples. To change the dataset, you can modify `data_args.input_shards`.
@@ -165,3 +169,19 @@ This project and models are licensed under the [Apache 2.0 License](LICENSE).
 
 We thank Tri Dao for his work on Flash Attention and the custom kernels that make this project possible, the [OpenCLIP](https://github.com/mlfoundations/open_clip) team for their
 great repository with which much of this work is based on, and the Huggingface team for their great work on the transformers library.
+
+
+## Citation
+
+If you find the model, dataset, or training code useful, please cite our work
+
+```bibtex
+@misc{nussbaum2024nomic,
+      title={Nomic Embed: Training a Reproducible Long Context Text Embedder}, 
+      author={Zach Nussbaum and John X. Morris and Brandon Duderstadt and Andriy Mulyar},
+      year={2024},
+      eprint={2402.01613},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL}
+}
+```
