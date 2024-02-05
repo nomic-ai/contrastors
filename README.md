@@ -12,7 +12,7 @@
 - Support for training on multiple GPUs
 - [GradCache](https://github.com/luyug/GradCache) support for training with large batch sizes in constrained memory environments
 - Huggingface Support for easy loading of common models (Pythia/GPTNeoX, BERT, etc.)
-- Masked Lanugage Modeling (MLM) Pretraining
+- Masked Language Modeling (MLM) Pretraining
 
 ## Getting Started and Requirements
 
