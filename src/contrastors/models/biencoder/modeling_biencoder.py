@@ -110,12 +110,20 @@ class BiEncoder(PreTrainedModel):
         else:
             raise ValueError(f"Pooling {config.pooling} not supported")
 
-    def forward(self, input_ids, attention_mask=None, is_padded_inputs=True, normalize=True, **kwargs):
+        if config.hamming:
+            self.hamming = nn.LayerNorm(self.trunk.config.hidden_size, elementwise_affine=False)
+        else:
+            self.hamming = nn.Identity()
+
+    def forward(self, input_ids, attention_mask=None, is_padded_inputs=True, normalize=True, binarize=False, **kwargs):
         trunk_output = self.trunk(input_ids, attention_mask=attention_mask, **kwargs)
         trunk_output = trunk_output[0]
         trunk_output = self.proj(trunk_output)
         embedding = self.selector(trunk_output, input_ids, attention_mask)
-        if normalize:
+        embedding = self.hamming(embedding)
+        if binarize:
+            return {"embedding": (embedding > 0).float()}
+        elif normalize:
             return {"embedding": F.normalize(embedding, dim=-1)}
         else:
             return {"embedding": embedding}

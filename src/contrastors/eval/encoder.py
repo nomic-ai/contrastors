@@ -100,7 +100,13 @@ class OpenAI_Encoder:
 
 class STransformer:
     def __init__(
-        self, model, add_prefix=False, query_prefix="search_query", document_prefix="search_document", normalize=True
+        self,
+        model,
+        add_prefix=False,
+        query_prefix="search_query",
+        document_prefix="search_document",
+        normalize=True,
+        binarize=False,
     ):
         self.model = model
         self.gpu_pool = self.model.start_multi_process_pool()
@@ -109,6 +115,7 @@ class STransformer:
         self.query_prefix = query_prefix
         self.docoment_prefix = document_prefix
         self.normalize = normalize
+        self.binarize = binarize
 
     def set_normalize(self, normalize):
         self.normalize = normalize
@@ -118,6 +125,7 @@ class STransformer:
             print(f"Adding prefix: {self.query_prefix}")
             sentences = [f"{self.query_prefix}: {sent}" for sent in sentences]
         kwargs["normalize"] = self.normalize
+        kwargs["binarize"] = self.binarize
         return self.model.encode_multi_process(sentences, self.gpu_pool, **kwargs)
 
     def encode_queries(self, queries, **kwargs) -> np.ndarray:
@@ -127,6 +135,7 @@ class STransformer:
             input_texts = queries
 
         kwargs["normalize"] = self.normalize
+        kwargs["binarize"] = self.binarize
         return self.model.encode_multi_process(input_texts, self.gpu_pool, **kwargs)
 
     def encode_corpus(self, corpus, **kwargs) -> np.ndarray:
@@ -141,39 +150,56 @@ class STransformer:
                 input_texts = [f'{self.docoment_prefix}: {t}' for t in input_texts]
 
         kwargs["normalize"] = self.normalize
+        kwargs["binarize"] = self.binarize
         return self.model.encode_multi_process(input_texts, self.gpu_pool, **kwargs)
 
 
 class Encoder:
-    def __init__(self, model_name, tokenizer_name="bert-base-uncased", seq_length=512, rotary_scaling_factor=None):
-        if rotary_scaling_factor is not None:
-            config.rotary_scaling_factor = rotary_scaling_factor
+    def __init__(
+        self,
+        model_name,
+        tokenizer_name="bert-base-uncased",
+        seq_length=512,
+        rotary_scaling_factor=None,
+        matryoshka_dim=None,
+    ):
 
         if os.path.exists(model_name):
             config = BiEncoderConfig.from_pretrained(model_name)
+            if rotary_scaling_factor is not None:
+                config.rotary_scaling_factor = rotary_scaling_factor
             self.model = BiEncoder.from_pretrained(model_name, config=config).to(torch.bfloat16)
         else:
             config = BiEncoderConfig(model_name=model_name, encoder=True, pooling="mean")
+            if rotary_scaling_factor is not None:
+                config.rotary_scaling_factor = rotary_scaling_factor
             self.model = BiEncoder(config).to(torch.bfloat16)
 
         self.model.eval()
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
         self.tokenizer.model_max_length = seq_length
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.matryoshka_dim = matryoshka_dim
 
     def encode(self, sentences, batch_size=256, **kwargs):
         embeddings = []
 
         device = kwargs.get("device", self.device)
         normalize = kwargs.get("normalize", True)
+        binarize = kwargs.get("binarize", False)
         self.model.to(device)
 
         with torch.no_grad():
             for i in range(0, len(sentences), batch_size):
                 batch = sentences[i : i + batch_size]
                 encoded = self.tokenizer(batch, padding=True, truncation=True, return_tensors="pt")
-                outputs = self.model(**encoded.to(device), normalize=normalize)
-                embeddings.extend(outputs["embedding"].cpu().float().numpy())
+                outputs = self.model(**encoded.to(device), normalize=normalize, binarize=binarize)
+                embs = outputs["embedding"].cpu().float().numpy()
+                if self.matryoshka_dim:
+                    embs = embs[:, : self.matryoshka_dim]
+                    if normalize:
+                        embs = embs / np.expand_dims(np.linalg.norm(embs, axis=-1), axis=1)
+                embeddings.extend(embs)
 
         return embeddings
 
@@ -218,11 +244,12 @@ class Encoder:
         """
         while True:
             try:
-                id, batch_size, sentences, normalize = input_queue.get()
+                id, batch_size, sentences, normalize, binarize = input_queue.get()
                 embeddings = model.encode(
                     sentences,
                     device=target_device,
                     normalize=normalize,
+                    binarize=binarize,
                     show_progress_bar=False,
                     convert_to_numpy=True,
                     batch_size=batch_size,
@@ -256,6 +283,7 @@ class Encoder:
         convert_to_numpy=None,
         convert_to_tensor=None,
         normalize=True,
+        binarize=False,
     ):
         """
         This method allows to run encode() on multiple GPUs. The sentences are chunked into smaller packages
@@ -281,12 +309,12 @@ class Encoder:
         for sentence in sentences:
             chunk.append(sentence)
             if len(chunk) >= chunk_size:
-                input_queue.put([last_chunk_id, batch_size, chunk, normalize])
+                input_queue.put([last_chunk_id, batch_size, chunk, normalize, binarize])
                 last_chunk_id += 1
                 chunk = []
 
         if len(chunk) > 0:
-            input_queue.put([last_chunk_id, batch_size, chunk, normalize])
+            input_queue.put([last_chunk_id, batch_size, chunk, normalize, binarize])
             last_chunk_id += 1
 
         output_queue = pool['output']

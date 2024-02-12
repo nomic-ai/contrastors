@@ -40,7 +40,7 @@ cohere_embedding_model: "embed-english-v3.0"
 
 # Boolean flags
 parser.add_argument('--model', type=str, default='m2', choices=model_options, help='Model type')
-parser.add_argument('--model-name', type=str, default="togethercomputer/m2-bert-80M-32k-retrieval", help='Model name')
+parser.add_argument('--model_name', type=str, default="togethercomputer/m2-bert-80M-32k-retrieval", help='Model name')
 
 parser.add_argument('--together-api', action='store_true', help='Use Together API')
 parser.add_argument('--save_embeddings', action='store_true', help='Save embeddings')

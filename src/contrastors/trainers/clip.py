@@ -1,3 +1,4 @@
+import torch.nn.functional as F
 import numpy as np
 import torch
 import torch.distributed as dist
@@ -17,6 +18,15 @@ class CLIPTrainer(BaseTrainer):
         super(CLIPTrainer, self).__init__(config, dtype)
 
         self.use_grad_cache = config.train_args.grad_cache
+        self.matryoshka_dims = config.train_args.matryoshka_dims
+        if self.matryoshka_dims:
+            self.matryoshka_loss_weights = (
+                config.train_args.matryoshka_loss_weights
+                if config.train_args.matryoshka_dims and config.train_args.matryoshka_loss_weights
+                else [1] * len(config.train_args.matryoshka_dims)
+            )
+        else:
+            self.matryoshka_loss_weights = None
 
     def get_model(self, config):
         if config.pretrained is None:
@@ -26,6 +36,7 @@ class CLIPTrainer(BaseTrainer):
                 logit_scale=config.logit_scale,
                 encoder=config.encoder,
                 trainable_logit_scale=config.trainable_logit_scale,
+                hamming=config.hamming,
             )
             model = BiEncoder(config)
         else:
@@ -121,7 +132,14 @@ class CLIPTrainer(BaseTrainer):
         if self.use_grad_cache:
             loss = self._grad_cache_forward_step(model, inputs, logit_scale, **kwargs)
         else:
-            loss = self._forward_step(model, inputs, logit_scale, **kwargs)
+            loss = self._forward_step(
+                model,
+                inputs,
+                logit_scale,
+                matryoshka_dims=self.matryoshka_dims,
+                matroyshka_loss_weights=self.matryoshka_loss_weights,
+                **kwargs,
+            )
 
         return loss
 
@@ -148,20 +166,24 @@ class CLIPTrainer(BaseTrainer):
         )
         return loss
 
-    def _forward_step(self, model, batch, logit_scale, **kwargs):
+    def _forward_step(self, model, batch, logit_scale, matryoshka_dims=None, matroyshka_loss_weights=None, **kwargs):
+        normalize = True if matryoshka_dims is None else False
         dataset_name = batch.pop("dataset_name")
         query_outputs = model(
             input_ids=batch["query_input_ids"].to(model.device),
             attention_mask=batch["query_attention_mask"].to(model.device),
+            normalize=normalize,
         )
         document_outputs = model(
             input_ids=batch["document_input_ids"].to(model.device),
             attention_mask=batch["document_attention_mask"].to(model.device),
+            normalize=normalize,
         )
         if "negative_input_ids" in batch:
             negative_outputs = model(
                 input_ids=batch["negative_input_ids"].to(model.device),
                 attention_mask=batch["negative_attention_mask"].to(model.device),
+                normalize=normalize,
             )
 
         queries = gather(query_outputs["embedding"])
@@ -172,15 +194,39 @@ class CLIPTrainer(BaseTrainer):
         else:
             negatives = None
 
-        loss = clip_loss(
-            query=queries,
-            document=documents,
-            negatives=negatives,
-            logit_scale=logit_scale,
-            tracker=self.tracker,
-            dataset=dataset_name,
-            **kwargs,
-        )
+        if matryoshka_dims:
+            loss = 0.0
+            for loss_weight, dim in zip(matroyshka_loss_weights, matryoshka_dims):
+                reduced_q = F.normalize(queries[:, :dim], dim=-1)
+                reduced_d = F.normalize(documents[:, :dim], dim=-1)
+                if negatives is not None:
+                    reduced_n = F.normalize(negatives[:, :dim], dim=-1)
+                else:
+                    reduced_n = None
+
+                name_with_dim = f"{dataset_name}_matryoshka_{dim}"
+
+                dim_loss = clip_loss(
+                    query=reduced_q,
+                    document=reduced_d,
+                    negatives=reduced_n,
+                    logit_scale=logit_scale,
+                    tracker=self.tracker,
+                    dataset=name_with_dim,
+                    **kwargs,
+                )
+
+                loss += loss_weight * dim_loss
+        else:
+            loss = clip_loss(
+                query=queries,
+                document=documents,
+                negatives=negatives,
+                logit_scale=logit_scale,
+                tracker=self.tracker,
+                dataset=dataset_name,
+                **kwargs,
+            )
 
         return loss
 
@@ -205,4 +251,4 @@ class CLIPTrainer(BaseTrainer):
         return loss
 
     def eval_loop(self, model, dataloader, step):
-        raise NotImplementedError("CLIP does not support evaluation")
+        raise NotImplementedError("CLIP Trainer does not support evaluation")

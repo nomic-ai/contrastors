@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import List, Optional
 
 from pydantic import BaseModel, root_validator, validator
 
@@ -34,6 +34,8 @@ class TrainArgs(BaseModel):
     clamp_logits: Optional[bool] = True
     logit_max: Optional[float] = 100.0
     add_l2_loss: Optional[bool] = False
+    matryoshka_dims: Optional[List[int]] = None
+    matryoshka_loss_weights: Optional[List[float]] = None
 
     class Config:
         validate_assignment = True
@@ -54,6 +56,15 @@ class TrainArgs(BaseModel):
         eval_steps, eval_strategy = values.get("eval_steps"), values.get("eval_strategy")
         if eval_strategy == "steps" and eval_steps is None:
             raise ValueError("Eval steps must be set if eval strategy is set to steps")
+
+        return values
+
+    @root_validator
+    def validate_matryoshka_no_grad_cache(cls, values):
+        # validate that matryoska isn't set if grad_cache is set
+        matryoshka, grad_cache = values.get("matryoshka_dims"), values.get("grad_cache")
+        if matryoshka is not None and grad_cache:
+            raise ValueError("Matryoshka dims cannot be set if grad cache is set")
 
         return values
 
@@ -130,6 +141,7 @@ class ModelArgs(BaseModel):
     projection_dim: Optional[int] = None
     freeze: Optional[bool] = False
     gradient_checkpointing: Optional[bool] = False
+    hamming: Optional[bool] = False
 
     @validator('logit_scale')
     def set_logit_scale(cls, scale):

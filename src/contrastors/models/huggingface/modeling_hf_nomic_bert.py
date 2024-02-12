@@ -311,8 +311,7 @@ class NomicBertPreTrainedModel(PreTrainedModel):
         rotary_scaling_factor = kwargs.pop("rotary_scaling_factor", None)
         if rotary_scaling_factor:
             config.rotary_scaling_factor = rotary_scaling_factor
-        else:
-            config.rotary_scaling_factor = None
+
         if config.n_positions <= 0 and config.rotary_emb_fraction > 0:
             config.n_positions = 2048
         if num_labels:
@@ -329,13 +328,23 @@ class NomicBertPreTrainedModel(PreTrainedModel):
         # Assuming we know what we're doing when loading from disk
         # Prob a bad assumption but i'm tired and want to train this asap
         if os.path.exists(model_name):
-            state_dict = torch.load(f"{model_name}/pytorch_model.bin")
+            model_path = f"{model_name}/pytorch_model.bin"
+            if os.path.exists(model_path):
+                state_dict = torch.load(f"{model_name}/pytorch_model.bin")
+            else:
+                model_path = f"{model_name}/model.safetensors"
+                if not os.path.exists(model_path):
+                    raise ValueError(f"Model path {model_path} not found")
+                state_dict = safe_load_file(model_path)
+
             if ignore_mismatched_shapes:
                 state_dict = filter_shapes(state_dict, model)
             load_return = model.load_state_dict(state_dict, strict=False)
         else:
             # TODO: can probably check config class and see if we need to remap from a bert model
-            state_dict = state_dict_from_pretrained(model_name)
+            state_dict = state_dict_from_pretrained(
+                model_name, safe_serialization=kwargs.get("safe_serialization", False)
+            )
             state_dict = remap_bert_state_dict(
                 state_dict,
                 config,
@@ -724,7 +733,7 @@ class NomicBertAttention(nn.Module):
                     scale_base=config.rotary_emb_scale_base,
                     interleaved=config.rotary_emb_interleaved,
                     rotary_scaling_factor=config.rotary_scaling_factor,
-                    max_position_embeddings=config.n_positions,
+                    max_position_embeddings=config.max_trained_positions,
                 )
             else:
                 self.rotary_emb = NomicBertRotaryEmbedding(
@@ -1051,6 +1060,8 @@ class NomicBertModel(NomicBertPreTrainedModel):
         position_ids=None,
         token_type_ids=None,
         attention_mask=None,
+        return_dict=None,
+        matryoshka_dim=None,
     ):
         if token_type_ids is None:
             token_type_ids = torch.zeros_like(input_ids)
@@ -1059,9 +1070,12 @@ class NomicBertModel(NomicBertPreTrainedModel):
         hidden_states = self.emb_drop(hidden_states)
 
         attention_mask = self.get_extended_attention_mask(attention_mask, input_ids.shape)
-        sequence_output = self.encoder(hidden_states, attention_mask=attention_mask)
+        sequence_output = self.encoder(hidden_states, attention_mask=attention_mask, return_dict=return_dict)
 
         pooled_output = self.pooler(sequence_output) if self.pooler is not None else None
+
+        if matryoshka_dim:
+            sequence_output = sequence_output[:, :matryoshka_dim]
 
         return BaseModelOutputWithPoolingAndCrossAttentions(
             last_hidden_state=sequence_output,

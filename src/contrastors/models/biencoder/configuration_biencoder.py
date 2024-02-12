@@ -12,6 +12,7 @@ class BiEncoderConfig(PretrainedConfig):
         encoder=False,
         freeze=False,
         trainable_logit_scale=False,
+        hamming=False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -23,3 +24,4 @@ class BiEncoderConfig(PretrainedConfig):
         self.pooling = pooling
         self.encoder = encoder
         self.freeze = freeze
+        self.hamming = hamming
