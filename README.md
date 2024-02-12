@@ -152,6 +152,7 @@ See the [README](scripts/text/README.md) in `scripts/text` for more information.
 We provide pretrained models for `nomic-embed-text-v1` at the following locations:
 
 - [nomic-embed-text-v1](https://huggingface.co/nomic-ai/nomic-embed-text-v1)
+- [nomic-embed-text-v1.5](https://huggingface.co/nomic-ai/nomic-embed-text-v1.5)
 - [nomic-embed-text-v1-ablated](https://huggingface.co/nomic-ai/nomic-embed-text-v1-ablated)
 - [nomic-embed-text-v1-unsupervised](https://huggingface.co/nomic-ai/nomic-embed-text-v1-unsupervised)
 - [nomic-bert-2048](https://huggingface.co/nomic-ai/nomic-bert-2048)
