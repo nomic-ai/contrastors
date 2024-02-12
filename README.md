@@ -13,6 +13,7 @@
 - [GradCache](https://github.com/luyug/GradCache) support for training with large batch sizes in constrained memory environments
 - Huggingface Support for easy loading of common models (Pythia/GPTNeoX, BERT, etc.)
 - Masked Language Modeling (MLM) Pretraining
+- [Matryoshka Representation Learning](https://arxiv.org/abs/2205.13147) for flexible embedding sizes
 
 ## Research
 
