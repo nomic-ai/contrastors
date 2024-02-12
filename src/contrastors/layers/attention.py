@@ -51,7 +51,7 @@ class FlashAttention(nn.Module):
                     scale_base=config.rotary_emb_scale_base,
                     interleaved=config.rotary_emb_interleaved,
                     rotary_scaling_factor=config.rotary_scaling_factor,
-                    max_position_embeddings=config.n_positions,
+                    max_position_embeddings=config.max_trained_positions,
                 )
             else:
                 self.rotary_emb = VarLengthRotaryEmbedding(

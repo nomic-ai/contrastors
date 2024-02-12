@@ -27,6 +27,7 @@ class NomicBertConfig(GPT2Config):
         pad_vocab_size_multiple=1,
         tie_word_embeddings=True,
         rotary_scaling_factor=1.0,
+        max_trained_positions=2048,
         **kwargs,
     ):
         self.prenorm = prenorm
@@ -50,5 +51,6 @@ class NomicBertConfig(GPT2Config):
         self.dense_seq_output = dense_seq_output
         self.pad_vocab_size_multiple = pad_vocab_size_multiple
         self.rotary_scaling_factor = rotary_scaling_factor
+        self.max_trained_positions = max_trained_positions
 
         super().__init__(**kwargs)

@@ -117,6 +117,8 @@ def parse_args():
     parser.add_argument("--tokenizer_name", type=str, default="bert-base-uncased")
     parser.add_argument("--seq_length", type=int, default=512)
     parser.add_argument("--no_normalize_classification", action="store_false")
+    parser.add_argument("--binarize", action="store_true")
+    parser.add_argument("--matryoshka_dim", type=int)
 
     return parser.parse_args()
 
@@ -127,9 +129,11 @@ if __name__ == "__main__":
     tokenizer_name = args.tokenizer_name
     seq_length = args.seq_length
     no_normalize_classification = args.no_normalize_classification
-    model = Encoder(model_name, seq_length=seq_length, tokenizer_name=tokenizer_name)
+    model = Encoder(
+        model_name, seq_length=seq_length, tokenizer_name=tokenizer_name, matryoshka_dim=args.matryoshka_dim
+    )
     print(f"Add prefix: {args.add_prefix}")
-    model = STransformer(model, add_prefix=args.add_prefix)
+    model = STransformer(model, add_prefix=args.add_prefix, binarize=args.binarize)
 
     task2prefix = {}
     for task in TASK_LIST_CLASSIFICATION:
@@ -167,7 +171,11 @@ if __name__ == "__main__":
         else:
             model.set_normalize(True)
 
-        evaluation.run(model, output_folder=f"results/{model_name}", eval_splits=eval_splits, show_progress_bar=True)
+        output_name = f"results/{model_name}binarize_{args.binarize}"
+        if args.matryoshka_dim:
+            output_name += f"_matryoshka_{args.matryoshka_dim}"
+
+        evaluation.run(model, output_folder=output_name, eval_splits=eval_splits, show_progress_bar=True)
 
     end = time.time()
     print(f"Time taken (mins): {(end-start)/60}")

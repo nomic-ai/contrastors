@@ -24,18 +24,18 @@ from contrastors.optimizer import configure_optimizer
 class BaseTrainer(metaclass=ABCMeta):
     def __init__(self, config, dtype=torch.float32):
         self.config = config
+        self.distributed = dist.is_initialized()
+        self.print = print_rank_zero if self.distributed else print
 
         seed = config.mlm_data_args.seed if config.mlm_data_args else config.contrastive_data_args.seed
         self.set_seed(seed)
-
-        self.distributed = dist.is_initialized()
-        self.print = print_rank_zero if self.distributed else print
-        self.print(json.dumps(config.dict(), indent=3))
 
         if config.train_args.wandb:
             self.tracker = self.get_trackers(config)
         else:
             self.tracker = None
+
+        self.print(json.dumps(config.dict(), indent=3))
 
         self.print(f"Using dtype: {dtype}")
 
@@ -352,11 +352,14 @@ class BaseTrainer(metaclass=ABCMeta):
             self.load_state(train_args.checkpoint)
 
         for epoch in range(0, train_args.num_epochs):
-            if epoch > 0 and getattr(train_dataloader, "sampler", None) is not None:
-                if isinstance(train_dataloader.sampler, DistributedSampler):
-                    train_dataloader.sampler.set_epoch(epoch)
+            if (
+                epoch > 0
+                and getattr(train_dataloader, "sampler", None) is not None
+                and isinstance(train_dataloader.sampler, DistributedSampler)
+            ):
+                train_dataloader.sampler.set_epoch(epoch)
             elif epoch > 0 and getattr(data_config, "streaming", False):
-                temp_config = data_config.copy(deep=True)
+                temp_config = self.config.copy(deep=True)
                 temp_config.contrastive_data_args.seed = data_config.seed + epoch
                 train_dataloader = self.get_dataloaders(temp_config)["train"]
 
