@@ -149,18 +149,18 @@ class CLIPTrainer(BaseTrainer):
             loss.backward()
 
     def _grad_cache_forward_step(self, model, batch, logit_scale, **kwargs):
-        # unused, not sure if we need to really do this though
         # TODO: could pass this to grad cache loss and log?
         batch.pop("dataset_name")
+        kwargs.pop("step")
         batch = {k: v.to(model.device) for k, v in batch.items()}
-        query_inputs = {k: v for k, v in batch.items() if "query" in k}
-        document_inputs = {k: v for k, v in batch.items() if "document" in k}
+        query_inputs = {k.replace("query_", ""): v for k, v in batch.items() if "query" in k}
+        document_inputs = {k.replace("document_", ""): v for k, v in batch.items() if "document" in k}
         loss = grad_cache_loss(
             tower1=model,
             tower2=model,
             t1_inputs=query_inputs,
             t2_inputs=document_inputs,
-            chunk_size=self.config.chunk_size,
+            chunk_size=self.config.train_args.chunk_size,
             logit_scale=logit_scale,
             **kwargs,
         )
