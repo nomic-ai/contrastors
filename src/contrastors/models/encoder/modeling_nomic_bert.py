@@ -93,8 +93,7 @@ class NomicBertPreTrainedModel(PreTrainedModel):
         if config is None:
             config = cls.config_class.from_pretrained(model_name)
         remove_cls = cls != NomicBertForPreTraining
-        remove_bert_prefix = cls != NomicBertForPreTraining
-        add_bert_prefix = cls == NomicBertForSequenceClassification
+        remove_bert_prefix = cls != NomicBertForPreTraining and cls != NomicBertForSequenceClassification
         ignore_mismatched_shapes = kwargs.pop("ignore_mismatched_sizes", False)
         num_labels = kwargs.pop("num_labels", None)
         rotary_scaling_factor = kwargs.pop("rotary_scaling_factor", None)
@@ -134,7 +133,6 @@ class NomicBertPreTrainedModel(PreTrainedModel):
                 remove_bert=remove_bert_prefix,
                 remove_cls_weights=remove_cls,
                 add_pooling_layer=getattr(config, "add_pooling_layer", False),
-                add_bert=add_bert_prefix,
             )
             if ignore_mismatched_shapes:
                 state_dict = filter_shapes(state_dict, model)

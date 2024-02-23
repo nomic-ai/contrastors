@@ -77,7 +77,6 @@ def remap_bert_state_dict(
     remove_bert=False,
     remove_cls_weights=False,
     add_pooling_layer=False,
-    add_bert=False,
 ):
     """
     Map the state_dict of a Huggingface BERT model to be flash_attn compatible.
@@ -230,16 +229,6 @@ def remap_bert_state_dict(
             return key
 
         state_dict = OrderedDict((remove_bert_prefix(k), v) for k, v in state_dict.items())
-
-    if add_bert:
-
-        def add_bert_prefix(key):
-            # prepend bert. to the key
-            if key.startswith("bert."):
-                return key
-            return f"bert.{key}"
-
-        state_dict = OrderedDict((add_bert_prefix(k), v) for k, v in state_dict.items())
 
     return state_dict
 
