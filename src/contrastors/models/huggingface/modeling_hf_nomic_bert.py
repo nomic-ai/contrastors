@@ -105,7 +105,13 @@ def filter_shapes(state_dict, model):
     return filtered_state_dict
 
 
-def remap_bert_state_dict(state_dict, config, remove_bert=False, remove_cls_weights=False, add_pooling_layer=False):
+def remap_bert_state_dict(
+    state_dict,
+    config,
+    remove_bert=False,
+    remove_cls_weights=False,
+    add_pooling_layer=False,
+):
     """
     Map the state_dict of a Huggingface BERT model to be flash_attn compatible.
     """
@@ -305,13 +311,12 @@ class NomicBertPreTrainedModel(PreTrainedModel):
         if config is None:
             config = cls.config_class.from_pretrained(model_name)
         remove_cls = cls != NomicBertForPreTraining
-        remove_bert_prefix = cls != NomicBertForPreTraining
+        remove_bert_prefix = cls != NomicBertForPreTraining and cls != NomicBertForSequenceClassification
         ignore_mismatched_shapes = kwargs.pop("ignore_mismatched_sizes", False)
         num_labels = kwargs.pop("num_labels", None)
         rotary_scaling_factor = kwargs.pop("rotary_scaling_factor", None)
-        if rotary_scaling_factor:
-            config.rotary_scaling_factor = rotary_scaling_factor
-
+        strict = kwargs.pop("strict", True)
+        config.rotary_scaling_factor = rotary_scaling_factor
         if config.n_positions <= 0 and config.rotary_emb_fraction > 0:
             config.n_positions = 2048
         if num_labels:
@@ -320,10 +325,7 @@ class NomicBertPreTrainedModel(PreTrainedModel):
         if "add_pooling_layer" in kwargs:
             model = cls(config, *inputs, add_pooling_layer=kwargs.pop("add_pooling_layer"))
         else:
-            if cls == NomicBertModel:
-                model = cls(config, *inputs, add_pooling_layer=False)
-            else:
-                model = cls(config, *inputs)
+            model = cls(config, *inputs)
         # TODO: fix this
         # Assuming we know what we're doing when loading from disk
         # Prob a bad assumption but i'm tired and want to train this asap
@@ -342,9 +344,7 @@ class NomicBertPreTrainedModel(PreTrainedModel):
             load_return = model.load_state_dict(state_dict, strict=False)
         else:
             # TODO: can probably check config class and see if we need to remap from a bert model
-            state_dict = state_dict_from_pretrained(
-                model_name, safe_serialization=kwargs.get("safe_serialization", False)
-            )
+            state_dict = state_dict_from_pretrained(model_name)
             state_dict = remap_bert_state_dict(
                 state_dict,
                 config,
@@ -355,7 +355,7 @@ class NomicBertPreTrainedModel(PreTrainedModel):
             if ignore_mismatched_shapes:
                 state_dict = filter_shapes(state_dict, model)
 
-            load_return = model.load_state_dict(state_dict, strict=True)
+            load_return = model.load_state_dict(state_dict, strict=strict)
         logger.warning(load_return)
         return model
 
@@ -726,7 +726,7 @@ class NomicBertAttention(nn.Module):
 
         self.rotary_emb_dim = self.head_dim * config.rotary_emb_fraction
         if self.rotary_emb_dim > 0:
-            if config.rotary_scaling_factor:
+            if getattr(config, "rotary_scaling_factor", None):
                 self.rotary_emb = NomicBertDynamicNTKRotaryEmbedding(
                     dim=self.rotary_emb_dim,
                     base=config.rotary_emb_base,
