@@ -408,7 +408,13 @@ class StreamingShardDataset(IterableDataset):
                 continue
 
             if self.add_eos:
-                collected = [sample[col] + self.tokenizer.eos_token for sample in samples]
+                if isinstance(samples[0][col], list):
+                    for sample in samples:
+                        sample[col] = [text + self.tokenizer.eos_token for text in sample[col]]
+                    collected = [sample[col] for sample in samples] 
+                
+                else:
+                    collected = [sample[col] + self.tokenizer.eos_token for sample in samples]
             else:
                 collected = [sample[col] for sample in samples]
 

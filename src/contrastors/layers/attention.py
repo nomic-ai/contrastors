@@ -44,7 +44,7 @@ class FlashAttention(nn.Module):
 
         self.rotary_emb_dim = self.head_dim * config.rotary_emb_fraction
         if self.rotary_emb_dim > 0:
-            if config.rotary_scaling_factor:
+            if getattr(config, "rotary_scaling_factor", None):
                 self.rotary_emb = DynamicNTKRotaryEmbedding(
                     dim=self.rotary_emb_dim,
                     base=config.rotary_emb_base,
