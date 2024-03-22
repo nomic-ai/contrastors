@@ -59,6 +59,9 @@ def main(config, dtype):
 if __name__ == "__main__":
     args = parse_args()
 
+    if args.deepspeed_config:
+        args.deepspeed = True
+
     if args.deepspeed:
         deepspeed.init_distributed()
     else:
