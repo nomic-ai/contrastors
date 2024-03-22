@@ -228,7 +228,6 @@ class BaseTrainer(metaclass=ABCMeta):
         return loaded_model
 
     def load_state(self, input_dir):
-        import pdb; pdb.set_trace()
         if self.deepspeed:
             self.engine.load_checkpoint(input_dir)
 
