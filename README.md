@@ -125,7 +125,7 @@ To train your own BERT from scratch (with all the optimizations) run
 
 ```bash
 cd src/contrastors
-deepspeed --num_gpus=8 train.py --config=configs/train/mlm.yaml --deepspeed_config_file=configs/deepspeed/ds_config.json --dtype=bf16
+deepspeed --num_gpus=8 train.py --config=configs/train/mlm.yaml --deepspeed_config=configs/deepspeed/ds_config.json --dtype=bf16
 ```
 
 ### Constrastive Pretraining and Finetuning
