@@ -1,0 +1,50 @@
+train_args:
+  num_epochs: 1 
+  learning_rate: 2.0e-5
+  weight_decay: 0.01
+  warmup_steps: 400
+  checkpoint: null
+  wandb: false
+  wandb_project_name: "text-contrastors"
+  wandb_entity: "gpt4all"
+  wandb_run_name: "pythia-140m-finetune"
+  log_grads_every: 100
+  log_lr_every: 10
+  save_every: 4500 
+  chunk_size: 32
+  output_dir: "ckpts/pythia-140m"
+  # if using deepspeed, this will be ignored
+  schedule_type: "linear"
+  max_grad_norm: 1.0
+  adam_beta1: 0.9
+  adam_beta2: 0.999
+  grad_cache: false
+  loss_fn: "clip"
+  use_fp8: false
+  clamp_logits: false
+  logit_max: 100
+
+model_args:
+  model_type: "encoder"
+  logit_scale: 50
+  trainable_logit_scale: false
+  seq_len: 128
+  pooling: "last"
+  encoder: false
+  add_prefix: true
+  num_negatives: 7 
+  tokenizer_name: "EleutherAI/pythia-160m"
+  model_name: "EleutherAI/pythia-160m"
+  pretrained: null
+
+
+contrastive_data_args:
+  input_shards: "configs/data/finetune_triplets.yaml"
+  workers: 8 
+  batch_size: 128
+  seed: 42
+  shuffle: false
+  download: true
+  streaming: true
+  weighted_sampling: false
+  verbose: true

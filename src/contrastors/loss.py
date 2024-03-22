@@ -1,5 +1,4 @@
 from contextlib import nullcontext
-from functools import partial
 
 import pandas as pd
 import torch
@@ -8,6 +7,7 @@ import torch.nn.functional as F
 import wandb
 
 from contrastors.distributed import gather, gather_dict
+from contrastors.rand_state import RandContext
 
 
 def clip_loss(
@@ -197,22 +197,25 @@ def gte_loss(query: torch.Tensor, document: torch.Tensor, logit_scale, gather_en
 
 def get_chunked_embeddings(model, chunks):
     embeddings = []
+    rand_states = []
 
     with torch.no_grad():
         for chunk in chunks:
+            rand_states.append(RandContext(chunk))
             emb = model(**chunk)
             embeddings.append(emb["embedding"])
 
-    return torch.concat(embeddings, dim=0)
+    return torch.concat(embeddings, dim=0), rand_states
 
 
-def accumulate_gradients(model, inputs, cache):
+def accumulate_gradients(model, inputs, cache, rand_states):
     length = len(inputs)
     sync_contexts = [model.no_sync for _ in range(length - 1)] + [nullcontext]
 
-    for inp, grad, sync_context in zip(inputs, cache, sync_contexts):
+    for inp, grad, state, sync_context in zip(inputs, cache, rand_states, sync_contexts):
         with sync_context():
-            embedding = model(**inp)["embedding"]
+            with state:
+                embedding = model(**inp)["embedding"]
             surrogate = torch.dot(embedding.flatten(), grad.flatten())
             surrogate.backward()
 
@@ -248,8 +251,8 @@ def grad_cache_loss(tower1, t1_inputs, tower2, t2_inputs, chunk_size, logit_scal
         document_chunk = {k: v[chunk_start : chunk_start + chunk_size] for k, v in t2_inputs.items()}
         chunked_documents.append(document_chunk)
 
-    query_embs = get_chunked_embeddings(tower1, chunked_queries)
-    document_embs = get_chunked_embeddings(tower2, chunked_documents)
+    query_embs, query_rand_states = get_chunked_embeddings(tower1, chunked_queries)
+    document_embs, doc_rand_states = get_chunked_embeddings(tower2, chunked_documents)
 
     query_cache, document_cache, loss = cache_loss(
         tower1, tower2, query_embs, document_embs, logit_scale, bidirectional=bidirectional
@@ -258,8 +261,8 @@ def grad_cache_loss(tower1, t1_inputs, tower2, t2_inputs, chunk_size, logit_scal
     chunked_query_cache = query_cache.split(chunk_size)
     chunked_document_cache = document_cache.split(chunk_size)
 
-    accumulate_gradients(tower1, chunked_queries, chunked_query_cache)
+    accumulate_gradients(tower1, chunked_queries, chunked_query_cache, query_rand_states)
     if tower2.training:
-        accumulate_gradients(tower2, chunked_documents, chunked_document_cache)
+        accumulate_gradients(tower2, chunked_documents, chunked_document_cache, doc_rand_states)
 
     return loss
