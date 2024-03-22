@@ -12,15 +12,15 @@ train_args:
   warmup_steps: null
   warmup_pct: 0.06
   cooldown_steps: null
-  checkpoint: null
+  checkpoint: "ckpts/mlm-trainer/step_5"
 
-  wandb: true
+  wandb: false
   wandb_project_name: "bert"
   wandb_entity: "gpt4all"
 
   log_grads_every: 100
   log_lr_every: 10
-  save_every: 20000
+  save_every: 5
   eval_every: 500
   output_dir: "ckpts/mlm-trainer"
   # if using deepspeed, this will be ignored
@@ -46,7 +46,7 @@ model_args:
 mlm_data_args:
   tokenized_dataset: "nomic-ai/bert-128-grouped"
   workers: 4
-  batch_size: 4096
+  batch_size: 128
   seed: 42
   shuffle: true
   mlm_prob: 0.30

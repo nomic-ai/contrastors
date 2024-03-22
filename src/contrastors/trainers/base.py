@@ -228,6 +228,7 @@ class BaseTrainer(metaclass=ABCMeta):
         return loaded_model
 
     def load_state(self, input_dir):
+        import pdb; pdb.set_trace()
         if self.deepspeed:
             self.engine.load_checkpoint(input_dir)
 
@@ -240,13 +241,6 @@ class BaseTrainer(metaclass=ABCMeta):
 
             self.print(f"Loading optimizer and scheduler state from {input_dir}/scheduler.pt")
             self.scheduler.load_state_dict(torch.load(f"{input_dir}/scheduler.pt"))
-
-            # todo check this works!
-            if hasattr(self.dataloaders["train"], "sampler") and isinstance(
-                self.dataloaders["train"].sampler, DistributedSampler
-            ):
-                self.print(f"Loading sampler state from {input_dir}/sampler.pt")
-                self.dataloaders["train"].sampler.load_state_dict(torch.load(f"{input_dir}/sampler.pt"))
 
         self.print(f"Loading random states from {input_dir}/random_states_{self.process_index}.pt")
         random_states = torch.load(f"{input_dir}/random_states_{self.process_index}.pt")
@@ -271,12 +265,7 @@ class BaseTrainer(metaclass=ABCMeta):
             schedulr_state_dict = self.scheduler.state_dict()
             torch.save(schedulr_state_dict, f"{output_dir}/scheduler.pt")
 
-            if hasattr(self.dataloaders["train"], "sampler") and isinstance(
-                self.dataloaders["train"].sampler, DistributedSampler
-            ):
-                sampler = self.dataloaders["train"].sampler
-                torch.save(sampler.state_dict(), f"{output_dir}/sampler.pt")
-            elif isinstance(self.dataloaders["train"], StreamingShardDataset):
+            if isinstance(self.dataloaders["train"], StreamingShardDataset):
                 data_config = (
                     self.config.mlm_data_args if self.config.mlm_data_args else self.config.contrastive_data_args
                 )
