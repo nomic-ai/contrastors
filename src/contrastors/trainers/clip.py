@@ -1,8 +1,8 @@
-import torch.nn.functional as F
 import numpy as np
 import torch
 import torch.distributed as dist
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 from contrastors.dataset.torch_loader import StreamingShardDataset, collate_fn, get_local_dataloader

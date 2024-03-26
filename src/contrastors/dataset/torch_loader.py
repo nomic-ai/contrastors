@@ -77,7 +77,10 @@ class StreamingShardDataset(IterableDataset):
 
         self.rank_batch_size = self.global_batch_size // self.world_size
 
-        self.fs = fsspec.filesystem("s3", config_kwargs={"connect_timeout": 600, "read_timeout": 600})
+        # defaults to s3
+        # when `parse_spec` is called, if this is not s3, it will be updated
+        self.filesystem = "s3"
+        self.fs = fsspec.filesystem(self.filesystem, config_kwargs={"connect_timeout": 600, "read_timeout": 600})
         self.paths = self.parse_spec(ds_spec)
         print_rank_zero(f"Total samples: {self.total_samples:,}")
         print_rank_zero("Number of samples per dataset")
@@ -103,6 +106,16 @@ class StreamingShardDataset(IterableDataset):
 
         self.path2stream = {}
 
+    def normalize_url(self, urls):
+        norm_urls = []
+        for url in urls:
+            # only keep the last two parts of the path
+            # this assumes the path is in the form s3://bucket/dataset/file.jsonl.gz
+            normed = "/".join(url.split("/")[-3:])
+            norm_urls.append(normed)
+
+        return norm_urls
+
     def parse_spec(self, fname):
         with open(fname) as stream:
             spec = yaml.safe_load(stream)
@@ -116,8 +129,12 @@ class StreamingShardDataset(IterableDataset):
             # TODO: we can probably remove the webdataset dependency
             urls = wds.shardlists.expand_urls(bucket)
 
+            # we don't normalize the urls since we need the full path to stream from s3
             paths.extend(urls)
-            self.path2objective.update({url: ds["objective"] for url in urls})
+            if self.filesystem == "s3":
+                if not all(url.startswith("s3://") for url in urls):
+                    self.filesystem = "file"
+                    self.fs = fsspec.filesystem(self.filesystem)
 
             bucket = "/".join(ds["bucket"].split("/")[:-1])
             with self.fs.open(f"{bucket}/counts.json", "r") as stream:
@@ -131,13 +148,16 @@ class StreamingShardDataset(IterableDataset):
                 offsets = json.load(stream)
 
             # edge case where we don't use all files in the bucket
-            present_files = {url: counts_per_file.get(url.replace("s3://", ""), 0) for url in urls}
+            normalized_urls = self.normalize_url(urls)
+            self.path2objective.update({url: ds["objective"] for url in normalized_urls})
+
+            present_files = {url: counts_per_file.get(url.replace("s3://", ""), 0) for url in normalized_urls}
             max_per_file = {
                 url: (
                     int(counts_per_file.get(url.replace("s3://", ""), 0) / self.world_size / (self.rank_batch_size))
                     * self.rank_batch_size
                 )
-                for url in urls
+                for url in normalized_urls
             }
 
             to_remove = []
@@ -203,6 +223,7 @@ class StreamingShardDataset(IterableDataset):
     def __iter__(self):
         while self.paths:  # Continue until all files are exhausted
             stream, path = self.get_next_stream()
+            normalized_path = self.normalize_url([path])[0]
             if stream is None:
                 break
 
@@ -219,9 +240,9 @@ class StreamingShardDataset(IterableDataset):
             with open(self.path, "w") as f:
                 json.dump(current_processed, f, indent=3)
 
-            if current_processed[path] >= self.max_per_shard[path]:
+            if current_processed[path] >= self.max_per_shard[normalized_path]:
                 if self.verbose:
-                    print_rank_zero(f"Finished processing {path}")
+                    print_rank_zero(f"Finished processing {normalized_path}")
                 self.paths.remove(path)
                 # if we only process one shard at a time
                 if self.process_one_shard:
@@ -230,10 +251,10 @@ class StreamingShardDataset(IterableDataset):
             # after the rounding down above, this should never happen
             if len(batch) < self.rank_batch_size:
                 raise ValueError(
-                    f"Batch size {len(batch)} is too small, something went wrong on rank {self.rank} for path {path}"
+                    f"Batch size {len(batch)} is too small, something went wrong on rank {self.rank} for path {normalized_path}"
                 )
 
-            batch = self.tokenize_pairs(batch, self.path2objective[path])
+            batch = self.tokenize_pairs(batch, self.path2objective[normalized_path])
 
             yield batch
 
@@ -293,18 +314,20 @@ class StreamingShardDataset(IterableDataset):
         # get offset for the rank since we read in `rank_batch_size` chunks
         rank_processed = num_processed + self.rank * self.rank_batch_size
 
-        offset = self.path2offsets[path.replace("s3://", "")][str(rank_processed)][0]
+        normalized_path = self.normalize_url([path])[0]
+
+        offset = self.path2offsets[normalized_path][str(rank_processed)][0]
         # seek to current offset
         stream.seek(offset)
 
-        objective = self.path2objective[path]
+        objective = self.path2objective[normalized_path]
 
         return self.jsonl_iterator(stream, objective, path, rank_processed)
 
     def download_rank_zero(self, s3_path):
         # only download if we are rank 0 otherwise wait for rank 0 to download
         # TODO: fix for multinode, need to update the if statement
-        local_path = Path(f"/tmp/{s3_path.replace('s3://', '')}")
+        local_path = Path(f"/tmp/{self.normalize_url([s3_path])[0]}")
         if self.rank == 0:
             if not local_path.parent.exists():
                 local_path.parent.mkdir(parents=True, exist_ok=True)
@@ -318,7 +341,7 @@ class StreamingShardDataset(IterableDataset):
     def jsonl_iterator(self, fileobj, objective, path, num_processed, handler=log_and_continue):
         # returns generator of jsonl lines
         stream = fileobj
-        offsets = self.path2offsets[path.replace("s3://", "")]
+        offsets = self.path2offsets[self.normalize_url([path])[0]]
         # offset num_processed by local_rank so we read different parts of the file
         try:
             for i in range(num_processed, len(offsets)):
@@ -411,8 +434,8 @@ class StreamingShardDataset(IterableDataset):
                 if isinstance(samples[0][col], list):
                     for sample in samples:
                         sample[col] = [text + self.tokenizer.eos_token for text in sample[col]]
-                    collected = [sample[col] for sample in samples] 
-                
+                    collected = [sample[col] for sample in samples]
+
                 else:
                     collected = [sample[col] + self.tokenizer.eos_token for sample in samples]
             else:
