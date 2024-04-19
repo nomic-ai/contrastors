@@ -37,13 +37,16 @@ class CLIPTrainer(BaseTrainer):
                 encoder=config.encoder,
                 trainable_logit_scale=config.trainable_logit_scale,
                 hamming=config.hamming,
+                gradient_checkpointing=config.gradient_checkpointing,
             )
             model = BiEncoder(config)
         else:
             self.print(f"Loading model from {config.pretrained}")
             model_config = BiEncoderConfig.from_pretrained(config.pretrained)
             if config.projection_dim is not None:
-                config.projection_dim = config.projection_dim
+                model_config.projection_dim = config.projection_dim
+            if config.gradient_checkpointing:
+                model_config.gradient_checkpointing = True
             model = BiEncoder.from_pretrained(config.pretrained, config=model_config)
 
         if self.distributed and not self.deepspeed:
