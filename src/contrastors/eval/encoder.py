@@ -178,6 +178,8 @@ class Encoder:
         self.model.eval()
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
         self.tokenizer.model_max_length = seq_length
+        if self.tokenizer.pad_token_id is None:
+            self.tokenizer.pad_token = self.tokenizer.eos_token
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.matryoshka_dim = matryoshka_dim
 
@@ -192,6 +194,7 @@ class Encoder:
         with torch.no_grad():
             for i in range(0, len(sentences), batch_size):
                 batch = sentences[i : i + batch_size]
+                batch = [sent + self.tokenizer.eos_token for sent in batch]
                 encoded = self.tokenizer(batch, padding=True, truncation=True, return_tensors="pt")
                 outputs = self.model(**encoded.to(device), normalize=normalize, binarize=binarize)
                 embs = outputs["embedding"].cpu().float().numpy()

@@ -82,7 +82,7 @@ SKIP_KEYS = ["std", "evaluation_time", "main_score", "threshold"]
 
 for ds_name, res_dict in sorted(all_results.items()):
     mteb_desc = (
-        MTEB(tasks=[ds_name.replace("CQADupstackRetrieval", "CQADupstackAndroidRetrieval")]).tasks[0].description
+        MTEB(tasks=[ds_name.replace("CQADupstackRetrieval", "CQADupstackAndroidRetrieval")]).tasks[0].metadata_dict
     )
     hf_hub_name = mteb_desc.get("hf_hub_name", mteb_desc.get("beir_name"))
     if "CQADupstack" in ds_name:

@@ -13,6 +13,7 @@ class BiEncoderConfig(PretrainedConfig):
         freeze=False,
         trainable_logit_scale=False,
         hamming=False,
+        gradient_checkpointing=False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -25,3 +26,4 @@ class BiEncoderConfig(PretrainedConfig):
         self.encoder = encoder
         self.freeze = freeze
         self.hamming = hamming
+        self.gradient_checkpointing = gradient_checkpointing

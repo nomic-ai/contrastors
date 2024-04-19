@@ -96,6 +96,9 @@ class BiEncoder(PreTrainedModel):
             for param in self.trunk.parameters():
                 param.requires_grad = False
 
+        if config.gradient_checkpointing:
+            self.trunk.gradient_checkpointing_enable()
+
         if config.projection_dim:
             self.proj = nn.Linear(self.trunk.config.hidden_size, config.projection_dim)
         else:
