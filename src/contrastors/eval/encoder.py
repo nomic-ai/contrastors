@@ -194,7 +194,8 @@ class Encoder:
         with torch.no_grad():
             for i in range(0, len(sentences), batch_size):
                 batch = sentences[i : i + batch_size]
-                batch = [sent + self.tokenizer.eos_token for sent in batch]
+                if self.model.config.pooling == "last":
+                    batch = [sent + self.tokenizer.eos_token for sent in batch]
                 encoded = self.tokenizer(batch, padding=True, truncation=True, return_tensors="pt")
                 outputs = self.model(**encoded.to(device), normalize=normalize, binarize=binarize)
                 embs = outputs["embedding"].cpu().float().numpy()

@@ -35,19 +35,17 @@ def state_dict_from_pretrained(model_name, safe_serialization=False, device=None
         is_sharded = True
         load_safe = True
     else:  # Try loading from HF hub instead of from local files
-        weight_name = WEIGHTS_NAME if not safe_serialization else SAFE_WEIGHTS_NAME
-        resolved_archive_file = cached_file(
-            model_name, weight_name, token=True, _raise_exceptions_for_missing_entries=False
-        )
-        if resolved_archive_file is None:
-            weight_index = WEIGHTS_INDEX_NAME if not safe_serialization else SAFE_WEIGHTS_INDEX_NAME
+        resolved_archive_file = None
+        for weight_name in [WEIGHTS_NAME, SAFE_WEIGHTS_NAME, WEIGHTS_INDEX_NAME, SAFE_WEIGHTS_INDEX_NAME]:
             resolved_archive_file = cached_file(
-                model_name, weight_index, token=True, _raise_exceptions_for_missing_entries=False
+                model_name, weight_name, token=True, _raise_exceptions_for_missing_entries=False
             )
             if resolved_archive_file is not None:
-                is_sharded = True
-
-        load_safe = safe_serialization
+                if weight_name in [SAFE_WEIGHTS_NAME, SAFE_WEIGHTS_INDEX_NAME]:
+                    load_safe = True
+                if weight_name in [WEIGHTS_INDEX_NAME, SAFE_WEIGHTS_INDEX_NAME]:
+                    is_sharded = True
+                break
 
     if resolved_archive_file is None:
         raise EnvironmentError(f"Model name {model_name} was not found.")

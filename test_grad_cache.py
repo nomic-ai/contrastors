@@ -6,6 +6,8 @@ from grad_cache import GradCache
 from transformers import AutoModel, AutoTokenizer
 
 from contrastors.loss import clip_loss, grad_cache_loss
+from contrastors.models.biencoder import LogitScale
+from dataclasses import dataclass
 
 # NOTE this requires you to pip install grad cache: https://github.com/luyug/GradCache/tree/main
 # TODO: loss is the same but gradients aren't -> they are like 2x the other loss
@@ -25,18 +27,16 @@ class ModelWrapper(nn.Module):
         }
 
 
-class LogitScale(nn.Module):
-    def __init__(self, scale=0):
-        super().__init__()
-        self.scale = nn.Parameter(torch.ones([]) * np.log(scale))
-
-    def forward(self, x):
-        return x * self.scale.exp()
-
-
 def print_rank0(*args, **kwargs):
     if dist.get_rank() == 0:
         print(*args, **kwargs)
+
+        
+@dataclass
+class LogitScaleConfig:
+    logit_scale = 1/0.07
+    trainable_logit_scale = False
+
 
 
 if __name__ == "__main__":
@@ -53,7 +53,7 @@ if __name__ == "__main__":
     encoder = AutoModel.from_pretrained("bert-base-uncased").to(device)
     model = ModelWrapper(encoder)
     first = nn.parallel.DistributedDataParallel(model, device_ids=[rank], output_device=rank)
-    scale = 1 / 0.07
+    scale = LogitScale(LogitScaleConfig())
 
     # NOTE! If using grad cache and > 1 gpu, you need to do the gather for the clip loss function yourself
     gc = GradCache(models=[first, first], chunk_sizes=2, loss_fn=clip_loss, get_rep_fn=lambda v: v["embedding"])
@@ -87,7 +87,8 @@ if __name__ == "__main__":
     model = nn.parallel.DistributedDataParallel(
         ModelWrapper(encoder), device_ids=[rank], output_device=rank, broadcast_buffers=False
     )
-    scale = 1 / 0.07
+    
+    scale = LogitScale(LogitScaleConfig())
     our_loss = grad_cache_loss(
         tower1=model, tower2=model, t1_inputs=query_inputs, t2_inputs=document_inputs, chunk_size=2, logit_scale=scale
     )
@@ -106,7 +107,7 @@ if __name__ == "__main__":
     model = nn.parallel.DistributedDataParallel(
         ModelWrapper(encoder), device_ids=[rank], output_device=rank, broadcast_buffers=False
     )
-    scale = 1 / 0.07
+    scale = LogitScale(LogitScaleConfig())
 
     query_emb = model(**xx)["embedding"]
     doc_emb = model(**yy)["embedding"]

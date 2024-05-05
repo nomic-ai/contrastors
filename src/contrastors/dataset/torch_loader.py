@@ -69,6 +69,7 @@ class StreamingShardDataset(IterableDataset):
         self.verbose = verbose
 
         if dist.is_initialized():
+            self.local_rank = int(os.environ["LOCAL_RANK"])
             self.rank = dist.get_rank()
             self.world_size = dist.get_world_size()
         else:
@@ -328,7 +329,7 @@ class StreamingShardDataset(IterableDataset):
         # only download if we are rank 0 otherwise wait for rank 0 to download
         # TODO: fix for multinode, need to update the if statement
         local_path = Path(f"/tmp/{self.normalize_url([s3_path])[0]}")
-        if self.rank == 0:
+        if self.local_rank == 0:
             if not local_path.parent.exists():
                 local_path.parent.mkdir(parents=True, exist_ok=True)
             if not local_path.exists():

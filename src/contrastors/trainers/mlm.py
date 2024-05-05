@@ -24,6 +24,7 @@ class MLMTrainer(BaseTrainer):
             hf_config.vocab_size = len(self.tokenizer)
         hf_config.max_position_embeddings = config.seq_len
         hf_config.rotary_emb_fraction = config.rotary_emb_fraction
+        hf_config.rotary_emb_base = config.rotary_emb_base
 
         hf_config.pad_vocab_to_multiple_of = config.pad_vocab_to_multiple_of
         # use rmsnorm instead of layernorm
@@ -40,8 +41,8 @@ class MLMTrainer(BaseTrainer):
         if config.gradient_checkpointing:
             model.gradient_checkpointing_enable()
 
+        model = model.to("cuda")
         if self.distributed and not self.deepspeed:
-            model = model.to("cuda")
             model = torch.nn.parallel.DistributedDataParallel(
                 model,
                 device_ids=[dist.get_rank()],
@@ -94,7 +95,7 @@ class MLMTrainer(BaseTrainer):
             sampler=val_sampler,
         )
 
-        self.total_num_steps = int(len(train_dataloader) // train_args.gradient_accumulation_steps)
+        self.total_num_steps = int(len(train_dataloader))
 
         return {"train": train_dataloader, "val": val_dataloader, "test": None}
 

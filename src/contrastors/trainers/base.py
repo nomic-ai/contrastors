@@ -1,3 +1,4 @@
+import os
 import json
 import random
 from abc import ABCMeta, abstractmethod
@@ -40,6 +41,10 @@ class BaseTrainer(metaclass=ABCMeta):
         self.print(f"Using dtype: {dtype}")
 
         self.deepspeed = config.deepspeed
+        if self.deepspeed:
+            ds_config = json.load(open(config.deepspeed_config))
+        else:
+            ds_config = {}
 
         self.tokenizer = self.get_tokenizer(config.model_args)
 
@@ -51,12 +56,12 @@ class BaseTrainer(metaclass=ABCMeta):
         )
 
         self.dataloaders = self.get_dataloaders(config)
-        self.optimizer = self.get_optimizer(config.train_args)
-        self.scheduler = self.get_scheduler(config.train_args, self.optimizer)
+        self.optimizer = self.get_optimizer(config.train_args, ds_config)
+        self.scheduler = self.get_scheduler(config.train_args, self.optimizer, ds_config)
 
         if self.deepspeed:
             engine, optimizer, dataloader, lr_scheduler = self.initialize_deepspeed(
-                rank=dist.get_rank(), ds_config_path=config.deepspeed_config
+                rank=dist.get_rank(), ds_config=ds_config
             )
 
             self.engine = engine
@@ -81,7 +86,11 @@ class BaseTrainer(metaclass=ABCMeta):
 
     @property
     def process_index(self):
-        return dist.get_rank() if self.distributed else 0
+        return int(os.environ.get("LOCAL_RANK", -1)) if self.distributed else 0
+
+    @property
+    def global_rank(self):
+        return int(os.environ.get("RANK", -1)) if self.distributed else 0
 
     @contextmanager
     def _goes_first(self, is_main):
@@ -99,13 +108,10 @@ class BaseTrainer(metaclass=ABCMeta):
             yield
 
     def log(self, metrics, step=None):
-        if self.process_index == 0:
+        if self.global_rank == 0:
             self.tracker.log(metrics, step=step)
 
-    def initialize_deepspeed(self, rank, ds_config_path):
-        # TODO handle grad cache?
-        ds_config = json.load(open(ds_config_path))
-
+    def initialize_deepspeed(self, rank, ds_config):
         # don't let deepspeed print to stdout
         ds_config["steps_per_print"] = float("inf")
 
@@ -127,7 +133,7 @@ class BaseTrainer(metaclass=ABCMeta):
 
     def get_trackers(self, config):
         tracker = None
-        if self.process_index == 0:
+        if self.global_rank == 0:
             project_name = config.train_args.wandb_project_name
             entity = config.train_args.wandb_entity
             run_name = config.train_args.wandb_run_name
@@ -171,13 +177,21 @@ class BaseTrainer(metaclass=ABCMeta):
     def get_dataloaders(self, config):
         pass
 
-    def get_optimizer(self, config):
-        models = [model for model in self.model.values()]
+    def get_optimizer(self, config, ds_config=None):
+        if ds_config:
+            if "optimizer" in ds_config:
+                optimizer = ds_config["optimizer"]
+                optimizer["params"]["lr"] = config.learning_rate
+                optimizer["params"]["weight_decay"] = config.weight_decay
+                optimizer["params"]["betas"] = [config.adam_beta1, config.adam_beta2]
+                return None
+
+        models = [model for model in self.model.values() if isinstance(model, nn.Module) and any(p.requires_grad for p in model.parameters())]
         optimizer = configure_optimizer(models, config)
 
         return optimizer
 
-    def get_scheduler(self, config, optimizer):
+    def get_scheduler(self, config, optimizer, ds_config):
         if hasattr(config, "warmup_steps") and getattr(config, "warmup_steps") is not None:
             total_num_steps = self.total_num_steps * config.num_epochs
             warmup_steps = config.warmup_steps
@@ -193,6 +207,21 @@ class BaseTrainer(metaclass=ABCMeta):
         self.print(f"Using {config.schedule_type} learning rate schedule")
         self.print(f"Warmup steps: {warmup_steps}")
         self.print(f"Total num steps: {total_num_steps}")
+
+        if ds_config:
+            if "scheduler" in ds_config:
+                scheduler = ds_config["scheduler"]
+                if scheduler["type"] == "WarmupDecayLR":
+                    scheduler["params"]["warmup_min_lr"] = 0.0
+                    scheduler["params"]["warmup_max_lr"] = config.learning_rate
+                elif scheduler["type"] == "WarmupCosineLR":
+                    scheduler["params"]["warmup_min_ratio"] = 0.0
+
+                scheduler["params"]["warmup_num_steps"] = warmup_steps
+                scheduler["params"]["total_num_steps"] = total_num_steps
+                return None
+
+
         scheduler = get_scheduler(
             name=config.schedule_type,
             optimizer=optimizer,
@@ -211,7 +240,7 @@ class BaseTrainer(metaclass=ABCMeta):
         return model
 
     def save_model(self, output_dir):
-        if self.process_index == 0:
+        if self.global_rank == 0:
             unwrapped = self.unwrap(self.model["model"])
             if self.deepspeed:
                 # TODO: need to add zero3 support
@@ -400,7 +429,7 @@ class BaseTrainer(metaclass=ABCMeta):
                     self.save_state(f"{train_args.output_dir}/step_{curr_step}")
 
             if val_dataloader and train_args.eval_strategy == "epochs":
-                self.eval_loop(dataloader=val_dataloader, step=epoch, **model)
+                self.eval_loop(dataloader=val_dataloader, step=curr_step, **model)
 
             if train_args.save_every > 0:
                 self.save_model(f"{train_args.output_dir}/epoch_{epoch}_model")

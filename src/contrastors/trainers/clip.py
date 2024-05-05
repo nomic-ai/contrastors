@@ -1,3 +1,4 @@
+import torch.nn.functional as F
 import numpy as np
 import torch
 import torch.distributed as dist
@@ -6,7 +7,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 from contrastors.dataset.torch_loader import StreamingShardDataset, collate_fn, get_local_dataloader
-from contrastors.distributed import gather
+from contrastors.distributed import gather_with_grad
 from contrastors.loss import clip_loss, grad_cache_loss
 from contrastors.models import BiEncoder, BiEncoderConfig, LogitScale
 
@@ -53,7 +54,7 @@ class CLIPTrainer(BaseTrainer):
             model = model.to("cuda")
             model = torch.nn.parallel.DistributedDataParallel(
                 model,
-                device_ids=[dist.get_rank()],
+                device_ids=[self.process_index],  
             )
 
         scale = LogitScale(config)
@@ -63,7 +64,7 @@ class CLIPTrainer(BaseTrainer):
             if sum(p.requires_grad for p in scale.parameters()) > 0:
                 scale = torch.nn.parallel.DistributedDataParallel(
                     scale,
-                    device_ids=[dist.get_rank()],
+                    device_ids=[self.process_index],
                 )
 
         return {"model": model, "logit_scale": scale}
@@ -147,9 +148,13 @@ class CLIPTrainer(BaseTrainer):
         return loss
 
     def backward(self, loss):
-        # grad cache backprops in the loss function, becomes a noop
-        if not self.use_grad_cache:
-            loss.backward()
+        if self.deepspeed:
+            self.engine.backward(loss)
+            self.engine.step()
+        else:
+            # grad cache backprops in the loss function, becomes a noop
+            if not self.use_grad_cache:
+                loss.backward()
 
     def _grad_cache_forward_step(self, model, batch, logit_scale, **kwargs):
         # TODO: could pass this to grad cache loss and log?
@@ -189,30 +194,20 @@ class CLIPTrainer(BaseTrainer):
                 normalize=normalize,
             )
 
-        queries = gather(query_outputs["embedding"])
-        documents = gather(document_outputs["embedding"])
-
-        if "negative_input_ids" in batch:
-            negatives = gather(negative_outputs["embedding"])
-        else:
-            negatives = None
+        queries = query_outputs["embedding"]
+        all_documents = gather_with_grad(document_outputs["embedding"])
 
         if matryoshka_dims:
             loss = 0.0
             for loss_weight, dim in zip(matroyshka_loss_weights, matryoshka_dims):
                 reduced_q = F.normalize(queries[:, :dim], dim=-1)
-                reduced_d = F.normalize(documents[:, :dim], dim=-1)
-                if negatives is not None:
-                    reduced_n = F.normalize(negatives[:, :dim], dim=-1)
-                else:
-                    reduced_n = None
+                reduced_d = F.normalize(all_documents[:, :dim], dim=-1)
 
                 name_with_dim = f"{dataset_name}_matryoshka_{dim}"
 
                 dim_loss = clip_loss(
                     query=reduced_q,
                     document=reduced_d,
-                    negatives=reduced_n,
                     logit_scale=logit_scale,
                     tracker=self.tracker,
                     dataset=name_with_dim,
@@ -223,8 +218,7 @@ class CLIPTrainer(BaseTrainer):
         else:
             loss = clip_loss(
                 query=queries,
-                document=documents,
-                negatives=negatives,
+                document=all_documents,
                 logit_scale=logit_scale,
                 tracker=self.tracker,
                 dataset=dataset_name,

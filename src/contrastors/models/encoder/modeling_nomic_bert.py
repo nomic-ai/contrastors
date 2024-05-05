@@ -36,7 +36,7 @@ except ImportError:
     FusedDense = None
 
 try:
-    from flash_attn.ops.layer_norm import dropout_add_layer_norm, layer_norm
+    from flash_attn.ops.layer_norm import layer_norm
 except ImportError:
     dropout_add_layer_norm, layer_norm = None, None
 
@@ -158,9 +158,9 @@ def _init_weights(module, initializer_range=0.02):
             nn.init.zeros_(module.weight[module.padding_idx])
 
 
-class NomicBertEncoder(nn.Module):
+class NomicBertEncoder(NomicBertPreTrainedModel):
     def __init__(self, config: GPT2Config):
-        super().__init__()
+        super().__init__(config)
         self.layers = nn.ModuleList([Block(config) for _ in range(config.n_layer)])
         self.gradient_checkpointing = False
         self.config = config
@@ -177,6 +177,10 @@ class NomicBertEncoder(nn.Module):
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
         is_padded_inputs: Optional[bool] = True,
+        kv_hidden_states: Optional[torch.LongTensor] = None,
+        kv_indices: Optional[torch.LongTensor] = None,
+        kv_cu_seqlens: Optional[torch.LongTensor] = None,
+        kv_max_seqlen: Optional[int] = None,
     ):
         """If subset_mask is not None, we only want output for the subset of the sequence.
         This means that we only compute the last layer output for these tokens.
@@ -203,9 +207,13 @@ class NomicBertEncoder(nn.Module):
                     hidden_states2,
                     residual,
                     attention_mask,
-                    None,
+                    position_ids,
                     None,
                     is_padded_inputs,
+                    output_attentions,
+                    use_cache,
+                    cu_seqlens,
+                    max_seqlen_in_batch,
                     # if you freeze ANY layers, you need `use_reentrant=False`
                     # https://github.com/huggingface/transformers/issues/21381
                     # https://discuss.pytorch.org/t/checkpoint-with-no-grad-requiring-inputs-problem/19117/7

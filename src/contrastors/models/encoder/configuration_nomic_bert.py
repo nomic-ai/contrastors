@@ -15,7 +15,7 @@ class NomicBertConfig(GPT2Config):
         use_flash_attn=False,
         use_xentropy=False,
         qkv_proj_bias=True,
-        rotary_emb_base=1000,
+        rotary_emb_base=10_000,
         rotary_emb_scale_base=None,
         rotary_emb_interleaved=False,
         mlp_fc1_bias=True,

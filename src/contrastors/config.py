@@ -124,6 +124,7 @@ class ModelArgs(BaseModel):
     trainable_logit_scale: Optional[bool] = False
     seq_len: Optional[int]
     rotary_emb_fraction: Optional[float]
+    rotary_emb_base: Optional[int] = 10_000
     pad_vocab_to_multiple_of: Optional[int]
     use_rms_norm: Optional[bool]
     pretrained: Optional[str]

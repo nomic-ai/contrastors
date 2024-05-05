@@ -35,7 +35,7 @@ def bert_config_to_nomic_config(bert_config: BertConfig) -> NomicBertConfig:
         use_flash_attn=True,
         use_xentropy=True,
         qkv_proj_bias=getattr(bert_config, "qkv_proj_bias", True),
-        rotary_emb_base=getattr(bert_config, "rotary_emb_base", 1000),
+        rotary_emb_base=getattr(bert_config, "rotary_emb_base", 10_000),
         rotary_emb_scale_base=getattr(bert_config, "rotary_emb_scale_base", None),
         rotary_emb_interleaved=getattr(bert_config, "rotary_emb_interleaved", False),
         mlp_fc1_bias=getattr(bert_config, "mlp_fc1_bias", True),

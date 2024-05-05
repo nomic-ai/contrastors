@@ -5,7 +5,8 @@ train_args:
   warmup_steps: 700
   cooldown_steps: null
   checkpoint: null
-  wandb: false
+  wandb: true
+  wandb_run_name: "nomic-embed-500k-rotary-base-unsupervised"
   wandb_project_name: "text-contrastors"
   wandb_entity: "gpt4all"
   log_grads_every: 100
@@ -14,7 +15,7 @@ train_args:
   chunk_size: 64
   output_dir: "ckpts/nomic-embed-text-v1-unsupervised"
   # if using deepspeed, this will be ignored
-  schedule_type: "inverse_sqrt"
+  schedule_type: "cosine"
   max_grad_norm: 1.0
   adam_beta1: 0.9
   adam_beta2: 0.999
@@ -29,18 +30,12 @@ model_args:
   trainable_logit_scale: false
   model_type: "encoder"
   seq_len: 2048
-  rotary_emb_fraction: 0.0
-  pad_vocab_to_multiple_of: 64 
-  use_rms_norm: false
-  activation_function: "gelu"
   pooling: "mean"
   encoder: true
   add_prefix: true
   tokenizer_name: "bert-base-uncased"
-  model_name: "nomic-ai/nomic-bert-2048"
-  qkv_proj_bias: false
-  mlp_fc1_bias: false
-  mlp_fc2_bias: false
+  model_name: "nomic-ai/nomic-bert-500k-rotary-base"
+  gradient_checkpointing: false
 
 contrastive_data_args:
   input_shards: "configs/data/contrastive_pretrain.yaml"

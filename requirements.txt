@@ -27,3 +27,6 @@ mwparserfromhell
 pydantic<2.0.0
 matplotlib
 seaborn
+tiktoken
+openai
+mteb

@@ -1,5 +1,5 @@
 train_args:
-  num_epochs: 5
+  num_epochs: 160
   learning_rate: 5.0e-4
   adam_beta1: 0.9
   adam_beta2: 0.98
@@ -7,22 +7,24 @@ train_args:
   eps: 1.0e-6
   max_grad_norm: 0.0
   schedule_type: "linear"
-  gradient_accumulation_steps: 1 
+  gradient_accumulation_steps: 4 
 
   warmup_steps: null
   warmup_pct: 0.06
   cooldown_steps: null
-  checkpoint: "ckpts/mlm-trainer/step_5"
+  checkpoint: null
 
-  wandb: false
+  wandb: true
   wandb_project_name: "bert"
+  wandb_run_name: "rotary-500k"
   wandb_entity: "gpt4all"
 
   log_grads_every: 100
   log_lr_every: 10
-  save_every: 5
-  eval_every: 500
-  output_dir: "ckpts/mlm-trainer"
+  save_every: 30000
+  eval_every: null
+  eval_strategy: "epochs"
+  output_dir: "ckpts/fix-rotary-base"
   # if using deepspeed, this will be ignored
   pretrained: null
   pooling: "last"
@@ -30,8 +32,9 @@ train_args:
 
 model_args:
   "model_type": "mlm"
-  seq_len: 128
+  seq_len: 2048
   rotary_emb_fraction: 1.0
+  rotary_emb_base: 500000
   pad_vocab_to_multiple_of: 64 
   use_rms_norm: false
   activation_function: "swiglu"
@@ -44,9 +47,9 @@ model_args:
   gradient_checkpointing: false
 
 mlm_data_args:
-  tokenized_dataset: "nomic-ai/bert-128-grouped"
+  tokenized_dataset: "nomic-ai/bert-pretokenized-2048-wiki-2023"
   workers: 4
-  batch_size: 128
+  batch_size: 1024
   seed: 42
   shuffle: true
   mlm_prob: 0.30

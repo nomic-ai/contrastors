@@ -1,3 +1,4 @@
+import os
 import logging
 from argparse import ArgumentParser
 
@@ -65,8 +66,8 @@ if __name__ == "__main__":
     if args.deepspeed:
         deepspeed.init_distributed()
     else:
-        dist.init_process_group()
-        torch.cuda.set_device(dist.get_rank())
+        dist.init_process_group(backend="nccl")
+        torch.cuda.set_device(int(os.environ["LOCAL_RANK"]))
 
     config = read_config(args.config)
     if args.deepspeed:

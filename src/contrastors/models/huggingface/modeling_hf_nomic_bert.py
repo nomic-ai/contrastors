@@ -59,15 +59,17 @@ def state_dict_from_pretrained(model_name, safe_serialization=False, device=None
         is_sharded = True
         load_safe = True
     else:  # Try loading from HF hub instead of from local files
-        weight_name = WEIGHTS_NAME if not safe_serialization else SAFE_WEIGHTS_NAME
-        resolved_archive_file = cached_file(model_name, weight_name, _raise_exceptions_for_missing_entries=False)
-        if resolved_archive_file is None:
-            weight_index = WEIGHTS_INDEX_NAME if not safe_serialization else SAFE_WEIGHTS_INDEX_NAME
-            resolved_archive_file = cached_file(model_name, weight_index, _raise_exceptions_for_missing_entries=False)
+        resolved_archive_file = None
+        for weight_name in [WEIGHTS_NAME, SAFE_WEIGHTS_NAME, WEIGHTS_INDEX_NAME, SAFE_WEIGHTS_INDEX_NAME]:
+            resolved_archive_file = cached_file(
+                model_name, weight_name, _raise_exceptions_for_missing_entries=False
+            )
             if resolved_archive_file is not None:
-                is_sharded = True
-
-        load_safe = safe_serialization
+                if weight_name in [SAFE_WEIGHTS_NAME, SAFE_WEIGHTS_INDEX_NAME]:
+                    load_safe = True
+                if weight_name in [WEIGHTS_INDEX_NAME, SAFE_WEIGHTS_INDEX_NAME]:
+                    is_sharded = True
+                break
 
     if resolved_archive_file is None:
         raise EnvironmentError(f"Model name {model_name} was not found.")
@@ -315,8 +317,9 @@ class NomicBertPreTrainedModel(PreTrainedModel):
         ignore_mismatched_shapes = kwargs.pop("ignore_mismatched_sizes", False)
         num_labels = kwargs.pop("num_labels", None)
         rotary_scaling_factor = kwargs.pop("rotary_scaling_factor", None)
-        strict = kwargs.pop("strict", True)
-        config.rotary_scaling_factor = rotary_scaling_factor
+        if rotary_scaling_factor:
+            config.rotary_scaling_factor = rotary_scaling_factor
+
         if config.n_positions <= 0 and config.rotary_emb_fraction > 0:
             config.n_positions = 2048
         if num_labels:
@@ -325,7 +328,10 @@ class NomicBertPreTrainedModel(PreTrainedModel):
         if "add_pooling_layer" in kwargs:
             model = cls(config, *inputs, add_pooling_layer=kwargs.pop("add_pooling_layer"))
         else:
-            model = cls(config, *inputs)
+            if cls == NomicBertModel:
+                model = cls(config, *inputs, add_pooling_layer=False)
+            else:
+                model = cls(config, *inputs)
         # TODO: fix this
         # Assuming we know what we're doing when loading from disk
         # Prob a bad assumption but i'm tired and want to train this asap
@@ -807,12 +813,12 @@ class NomicBertAttention(nn.Module):
         return attn_output
 
 
-class NomicBertBlock(nn.Module):
+class NomicBertBlock(NomicBertPreTrainedModel):
     def __init__(
         self,
         config,
     ):
-        super().__init__()
+        super().__init__(config=config)
         self.prenorm = config.prenorm
         self.fused_dropout_add_ln = config.fused_dropout_add_ln
 
@@ -1057,9 +1063,9 @@ class NomicBertModel(NomicBertPreTrainedModel):
     def forward(
         self,
         input_ids,
+        attention_mask=None,
         position_ids=None,
         token_type_ids=None,
-        attention_mask=None,
         return_dict=None,
         matryoshka_dim=None,
     ):

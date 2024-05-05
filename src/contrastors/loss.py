@@ -6,7 +6,7 @@ import torch.distributed as dist
 import torch.nn.functional as F
 import wandb
 
-from contrastors.distributed import gather, gather_dict
+from contrastors.distributed import gather, gather_with_grad
 from contrastors.rand_state import RandContext
 
 
@@ -16,12 +16,7 @@ def clip_loss(
     logit_scale,
     step=None,
     gather_enabled=False,
-    negatives=None,
-    kd_scores=None,
-    alpha=0.2,
-    tokenizer=None,
     tracker=None,
-    inputs=None,
     dataset="",
     bidirectional=False,
 ):
@@ -40,93 +35,35 @@ def clip_loss(
         torch.Tensor of shape 1 corresponding to the loss
     """
     if gather_enabled:
-        query = gather(query)
-        document = gather(document)
-        if negatives is not None:
-            negatives = gather(negatives)
+        document = gather_with_grad(document)
 
     device = query.device
-    labels = torch.arange(query.shape[0]).to(device)
 
     if query.dtype != document.dtype:
         document = document.to(query.dtype)
-    bs = query.shape[0]
-    if negatives is not None:
-        # negatives is of shape (bs*num_negatives, D)
-        # we only want the negatives corresponding to the query
-        # reshape and extract the negatives corresponding to the query
-        # negatives should be of shape (bs, D) after this
-        reshaped_negative = negatives.reshape(bs, -1, negatives.shape[-1])
-        num_negatives = reshaped_negative.shape[1]
 
-        # sim_query_doc is of shape (bs, bs + bs*num_negatives)
-        sim_query_doc = torch.matmul(query, torch.cat([document, negatives], dim=0).T)
-        similarity_query_document = sim_query_doc * logit_scale
 
+    labels = torch.arange(query.shape[0]).to(device)
+    similarity_query_document = logit_scale(torch.matmul(query, document.T))
+    num_logits = similarity_query_document.size(0)
+    rank = dist.get_rank() if dist.is_initialized() else 0
+    # calculate sub-batch labels
+    labels = labels + rank * num_logits 
+
+    # if training with negatives
+    # multiply by world size since we only gather the document embeddings
+    labels = labels * (document.size(0) // (query.size(0) * dist.get_world_size()))
+
+    if bidirectional:
+        similarity_document_query = logit_scale(torch.matmul(document, query.T))
+        loss = (
+            F.cross_entropy(similarity_query_document, labels) + F.cross_entropy(similarity_document_query, labels)
+        ) * dist.get_world_size()
+    else:
         loss = F.cross_entropy(similarity_query_document, labels) * dist.get_world_size()
 
-        if kd_scores is not None:
-            kd_scores = kd_scores.to(device)
-            kd_scores = gather(kd_scores)
-            # ignore where -1
-            # get positive scores and hard negative scores
-            # use logit scaled scores !!!
-            positives = similarity_query_document.diag()
-            negatives = similarity_query_document[:, bs:]
-
-            sim_qd_scores = torch.cat([positives.unsqueeze(1), negatives], dim=1)
-
-            # masked log softmax similar to: https://github.com/allenai/allennlp/blob/b6cc9d39651273e8ec2a7e334908ffa9de5c2026/allennlp/nn/util.py#L272-L303
-            # mask = (kd_scores != -1).to(device)
-            # sim_qd_scores = sim_qd_scores + (mask.float() + 1e-45).log()
-            # kd_scores = kd_scores + (mask.float() + 1e-45).log()
-            log_scores = torch.log_softmax(sim_qd_scores, dim=1)
-            log_labels = torch.log_softmax(kd_scores, dim=1)
-            kl_loss = F.kl_div(log_scores, log_labels, reduction="batchmean", log_target=True)
-
-            tracker.log({"kd_loss": kl_loss.detach().cpu().item(), "ce_loss": loss.detach().cpu().item()}, step=step)
-
-            # sync to cuda to gather then detach
-            inputs = gather_dict({k: v.to(device) for k, v in inputs.items()})
-            inputs = {k: v.detach().cpu() for k, v in inputs.items()}
-
-            queries = tokenizer.batch_decode(inputs["query_input_ids"], skip_special_tokens=True)
-            documents = tokenizer.batch_decode(inputs["document_input_ids"], skip_special_tokens=True)
-            negatives = tokenizer.batch_decode(inputs["negative_input_ids"], skip_special_tokens=True)
-            softmax_pred_ce_scores = torch.log_softmax(sim_qd_scores, dim=1).exp().detach().cpu().numpy().tolist()
-            softmax_true_ce_scores = torch.log_softmax(kd_scores, dim=1).exp().detach().cpu().numpy().tolist()
-
-            data = {"query": queries, "document": documents}
-            reshaped_negatives = []
-            for i in range(len(queries)):
-                reshaped_negatives.append(negatives[i * num_negatives : (i + 1) * num_negatives])
-
-            # add predicted correct score and true correct score
-            data["sofmax_pred_ce_score_correct"] = [pred[0] for pred in softmax_pred_ce_scores]
-            data["sofmax_true_ce_score_correct"] = [true[0] for true in softmax_true_ce_scores]
-
-            for neg in range(num_negatives):
-                data[f"negative_{neg}"] = [negs[neg] for negs in reshaped_negatives]
-                data[f"softmax_pred_ce_score_negative_{neg}"] = [pred[neg + 1] for pred in softmax_pred_ce_scores]
-                data[f"softmax_true_ce_score_negative_{neg}"] = [true[neg + 1] for true in softmax_true_ce_scores]
-
-            table = wandb.Table(dataframe=pd.DataFrame(data))
-            tracker.log({"cross_encoder_tabe": table}, step=step)
-
-            loss = loss * alpha + kl_loss
-
-    else:
-        similarity_query_document = logit_scale(torch.matmul(query, document.T))
-        labels = labels * (document.size(0) // query.size(0))
-        if bidirectional:
-            similarity_document_query = logit_scale(torch.matmul(document, query.T))
-            loss = (
-                F.cross_entropy(similarity_query_document, labels) + F.cross_entropy(similarity_document_query, labels)
-            ) * dist.get_world_size()
-        else:
-            loss = F.cross_entropy(similarity_query_document, labels) * dist.get_world_size()
-
     if tracker is not None:
+        # this will only calculate 1/N accuracy where N is the number of gpus
         accuracy = (similarity_query_document.argmax(dim=1) == labels).float().mean()
         tracker.log({f"accuracy_{dataset}": accuracy.detach().cpu().item()}, step=step)
 
