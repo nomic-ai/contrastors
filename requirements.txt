@@ -130,7 +130,7 @@ pytrec-eval-terrier==0.5.6
 pytz==2024.1
 PyYAML==6.0.1
 regex==2024.5.10
-requests==2.31.0
+requests==2.32.2
 rich==13.7.1
 rsa==4.9
 s3fs==2024.3.1
