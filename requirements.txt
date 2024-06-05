@@ -102,7 +102,7 @@ pandas==2.2.2
 pathlib_abc==0.1.1
 pathy==0.11.0
 peft==0.4.0
-pillow==10.2.0
+pillow==10.3.0
 platformdirs==4.2.1
 pluggy==1.5.0
 polars==0.20.25
