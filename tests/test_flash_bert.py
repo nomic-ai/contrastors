@@ -3,18 +3,15 @@ from collections import OrderedDict
 
 import pytest
 import torch
-from transformers import AutoConfig, BertConfig
+import torch.nn.functional as F
+from transformers import AutoModel, BertConfig
 from transformers.models.bert.modeling_bert import BertForPreTraining as BertForPreTrainingHF
 
-from contrastors.models.encoder.bert import (
-    bert_config_to_nomic_config,
-    inv_remap_state_dict,
-    nomic_config_to_bert_config,
-    remap_bert_state_dict,
-)
-from contrastors.models.encoder.configuration_nomic_bert import NomicBertConfig
+from contrastors.models.biencoder import BiEncoder, BiEncoderConfig
+from contrastors.models.encoder.bert import bert_config_to_nomic_config, inv_remap_state_dict, remap_bert_state_dict
 from contrastors.models.encoder.modeling_nomic_bert import NomicBertForPreTraining
 from contrastors.models.huggingface.modeling_hf_nomic_bert import NomicBertForPreTraining as NomicBertForPreTrainingHF
+from contrastors.models.huggingface.modeling_hf_nomic_bert import NomicBertModel as NomicBertModelHF
 from contrastors.models.model_utils import state_dict_from_pretrained
 
 
@@ -184,53 +181,41 @@ def test_nomic_bert_hf_comparison(model_name):
     assert torch.allclose(pooled_output, pooled_output_hf, atol=1e-6, rtol=1e-6)
 
 
-@pytest.mark.parametrize("model_name", ["nomic-ai/nomic-bert-2048"])
-def test_nomic_bert_hf(model_name):
-    dtype = torch.bfloat16
-    hf_config = NomicBertConfig.from_pretrained(model_name)
-    config = nomic_config_to_bert_config(hf_config)
-    config.add_pooling_layer = True
+def mean_pooling(model_output, attention_mask):
+    token_embeddings = model_output[0]
+    input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).to(dtype=token_embeddings.dtype)
+    return torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
 
-    model = NomicBertForPreTraining.from_pretrained(model_name)
-    model = model.cuda().to(dtype=dtype)
 
-    model_hf = NomicBertForPreTrainingHF.from_pretrained(model_name)
-    model_hf = model_hf.cuda().to(dtype=dtype)
+@pytest.mark.parametrize(
+    "model_name, dtype",
+    [("nomic-ai/nomic-embed-text-v1", torch.float16), ("nomic-ai/nomic-embed-text-v1", torch.bfloat16)],
+)
+def test_nomic_embed(model_name, dtype):
+    hf_config = BertConfig.from_pretrained(model_name)
 
-    model_hf_full_precision = NomicBertForPreTrainingHF.from_pretrained(model_name)
-    model_hf_full_precision = model_hf_full_precision.cuda().to(dtype=torch.float32)
+    model_ref = AutoModel.from_pretrained(model_name, trust_remote_code=True, add_pooling_layer=False).to(
+        dtype=dtype, device="cuda"
+    )
 
-    model.eval()
-    model_hf.eval()
-    model_hf_full_precision.eval()
-
-    for key in model.state_dict().keys():
-        t1 = model.state_dict()[key]
-        t2 = model_hf.state_dict()[key]
-        assert t1.shape == t2.shape, f"{key}: {t1.shape} != {t2.shape}"
-        assert torch.allclose(t1, t2, atol=1e-6, rtol=1e-6), f"{key}: {t1} != {t2}"
+    c_config = BiEncoderConfig(model_name=model_name, nomic_encoder=True, pooling="mean", pretrained=True)
+    c_model = BiEncoder(c_config).to(dtype=dtype, device="cuda")
 
     torch.manual_seed(0)
     batch_size = 4
     max_seqlen = 512
     seqlens = torch.randint(max_seqlen // 2, max_seqlen + 1, (batch_size,), device="cuda")
     attention_mask = torch.arange(max_seqlen, device="cuda")[None, :] < seqlens[:, None]
-    input_ids = torch.randint(0, config.vocab_size, (batch_size, max_seqlen), dtype=torch.long, device="cuda")
-    out = model.bert(input_ids, attention_mask=attention_mask)
-    sequence_output, _ = out.last_hidden_state, out.pooler_output
+    input_ids = torch.randint(0, hf_config.vocab_size, (batch_size, max_seqlen), dtype=torch.long, device="cuda")
+    out = model_ref(input_ids, attention_mask=attention_mask)
 
-    out_ref = model_hf.bert(input_ids, attention_mask=attention_mask)
-    sequence_output_hf, _ = out_ref.last_hidden_state, out_ref.pooler_output
-    sequence_output_hf[~attention_mask, :] = 0.0
+    hf_embs = mean_pooling(out, attention_mask)
+    hf_embs_norm = F.normalize(hf_embs, p=2, dim=1)
 
-    out_hf = model_hf_full_precision.bert(input_ids, attention_mask=attention_mask)
-    sequence_output_ref, _ = out_hf.last_hidden_state, out_hf.pooler_output
-    sequence_output_ref[~attention_mask, :] = 0.0
+    c_embs = c_model(input_ids, attention_mask=attention_mask)["embedding"]
 
-    print(f"Output max diff: {(sequence_output - sequence_output_ref).abs().max().item()}")
-    print(f"Output mean diff: {(sequence_output - sequence_output_ref).abs().mean().item()}")
-    print(f"HF bf16 max diff: {(sequence_output_hf - sequence_output_ref).abs().max().item()}")
-    print(f"HF bf16 mean diff: {(sequence_output_hf - sequence_output_ref).abs().mean().item()}")
-    assert (sequence_output - sequence_output_ref).abs().max().item() < 3 * (
-        sequence_output_hf - sequence_output_ref
-    ).abs().max().item()
+    print(f"Output max diff: {(hf_embs_norm - c_embs).abs().max().item()}")
+    print(f"Output mean diff: {(hf_embs_norm - c_embs).abs().mean().item()}")
+    print(f"Output max diff: {(hf_embs_norm - c_embs).abs().max().item()}")
+
+    assert torch.allclose(hf_embs_norm, c_embs, atol=5e-3, rtol=1e-5)

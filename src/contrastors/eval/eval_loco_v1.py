@@ -10,12 +10,12 @@ from beir import LoggingHandler, util
 from beir.datasets.data_loader import GenericDataLoader
 from beir.retrieval.evaluation import EvaluateRetrieval
 from beir.retrieval.search.dense import DenseRetrievalExactSearch as DRES
+from datasets import load_dataset
 from tabulate import tabulate
+from tqdm import tqdm
 
 from contrastors.eval.encoder import Encoder, HFEncoder, OpenAI_Encoder, STransformer
 from contrastors.eval.loco_dres import DenseRetrievalExactSearch as DRES
-from datasets import load_dataset
-from tqdm import tqdm
 
 #### Just some code to print debug information to stdout
 logging.basicConfig(
@@ -24,6 +24,7 @@ logging.basicConfig(
 #### /print debug information to stdout
 
 ######################################################################
+
 
 def load_loco_from_hf(dataset_name: str, split: str, document_column: str, query_column: str, subset=None):
 
@@ -58,8 +59,7 @@ def load_loco_from_hf(dataset_name: str, split: str, document_column: str, query
     else:
         dataset_choice = subset
         split = "test"
-        #raise ValueError("No dataset specified for LoCo!")
-
+        # raise ValueError("No dataset specified for LoCo!")
 
     ##########################################
 
@@ -67,13 +67,17 @@ def load_loco_from_hf(dataset_name: str, split: str, document_column: str, query
         split = "test"
 
     queries_dataset = load_dataset("hazyresearch/LoCoV1-Queries")[split]
+
     def filter_condition(example):
         return example['dataset'] == dataset_choice
+
     queries_dataset = queries_dataset.filter(filter_condition)
 
     documents = load_dataset("hazyresearch/LoCoV1-Documents")[split]
+
     def filter_condition(example):
         return example['dataset'] == dataset_choice
+
     documents = documents.filter(filter_condition)
 
     ##########################################
@@ -87,14 +91,18 @@ def load_loco_from_hf(dataset_name: str, split: str, document_column: str, query
         for pid in queries_dataset[row]["answer_pids"]:
             qrels_list[pid] = 1
         qrels[queries_dataset[row]["qid"]] = qrels_list
-    
+
     corpus = {}
     for row in tqdm(range(len(documents))):
         corpus[documents[row]['pid']] = {"title": "", "text": documents[row]["passage"]}
 
     if "qasper" in dataset_choice:
-        queries = {key: value for key, value in queries.items() if corpus[key.replace("Query", "Passage")]['text'] is not None} # Check to make sure corpus passage is not None
-        corpus = {key: value for key, value in corpus.items() if corpus[key.replace("Query", "Passage")]['text'] is not None} # Check to make sure corpus passage is not None
+        queries = {
+            key: value for key, value in queries.items() if corpus[key.replace("Query", "Passage")]['text'] is not None
+        }  # Check to make sure corpus passage is not None
+        corpus = {
+            key: value for key, value in corpus.items() if corpus[key.replace("Query", "Passage")]['text'] is not None
+        }  # Check to make sure corpus passage is not None
 
     print("Example Query")
     print(list(queries.values())[5])
@@ -102,6 +110,7 @@ def load_loco_from_hf(dataset_name: str, split: str, document_column: str, query
     print(list(corpus.values())[5]['text'][:200])
 
     return corpus, queries, qrels
+
 
 import argparse
 
@@ -192,11 +201,18 @@ if __name__ == '__main__':
     stackoverflow = ("stackoverflow", "test", "passage", "query", None)
 
     total_datasets = [
-        tau_scrolls_summ_screen_fd_config, tau_scrolls_gov_report_config,
-        tau_scrolls_qmsum_config, qasper_title_config, qasper_abstract_config,
-        multifieldqa_en_config, wikimqa_config,
-        passage_retrieval_en_config, legal_case_reports,
-        courtlistener_html, courtlistener_plain_text, stackoverflow
+        tau_scrolls_summ_screen_fd_config,
+        tau_scrolls_gov_report_config,
+        tau_scrolls_qmsum_config,
+        qasper_title_config,
+        qasper_abstract_config,
+        multifieldqa_en_config,
+        wikimqa_config,
+        passage_retrieval_en_config,
+        legal_case_reports,
+        courtlistener_html,
+        courtlistener_plain_text,
+        stackoverflow,
     ]
 
     ######################################################################
@@ -266,7 +282,9 @@ if __name__ == '__main__':
 
             dataset_name = f'{dataset[0]}_{dataset[4]}_{dataset[3]}'
 
-            corpus, queries, qrels = load_loco_from_hf(dataset[0], dataset[1], dataset[2], dataset[3], subset=dataset[4])
+            corpus, queries, qrels = load_loco_from_hf(
+                dataset[0], dataset[1], dataset[2], dataset[3], subset=dataset[4]
+            )
 
         ######################################################################
 

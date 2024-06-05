@@ -14,10 +14,12 @@
 - Huggingface Support for easy loading of common models (Pythia/GPTNeoX, BERT, etc.)
 - Masked Language Modeling (MLM) Pretraining
 - [Matryoshka Representation Learning](https://arxiv.org/abs/2205.13147) for flexible embedding sizes
+- [CLIP](https://arxiv.org/abs/2103.00020) and [LiT](https://arxiv.org/abs/2111.07991) style contrastive learning
+- Support for loading popular ViT (e.g. [timm](https://huggingface.co/timm)) models
 
 ## Research
 
-* [Nomic Embed: Training a Reproducible Long Context Text Embedder](https://arxiv.org/abs/2402.01613) by Zach Nussbaum, Jack Morris, Andrei Mulyar, and Brandon Duderstadt
+* [Nomic Embed: Training a Reproducible Long Context Text Embedder](https://arxiv.org/abs/2402.01613) by Zach Nussbaum, Jack Morris, Andriy Mulyar, and Brandon Duderstadt
 
 ## Getting Started and Requirements
 
@@ -41,7 +43,7 @@ pip3 install torch torchvision torchaudio
 Install wheel, packaging, ninja for Flash Attention (so the builds don't take too long)
 
 ```bash
-pip install wheel packaging ninja
+pip install wheel packaging ninja setuptools
 ```
 
 Install Flash Attention and the custom kernels
@@ -140,6 +142,17 @@ torchrun --nproc-per-node=8 train.py --config=configs/train/contrastive_pretrain
 This will train a bert model on all ~200M examples. To change the dataset, you can modify `data_args.input_shards`.
 
 To finetune `nomic-bert-embed-v1-unsupervised`, update the config to `configs/train/contrastive_finetune.yaml`.
+
+
+## Training `nomic-embed-vision-v1.5`
+
+To align a vision model, you will need to curate a large image-text dataset. More details can be found [here](https://github.com/rom1504/img2dataset).
+
+To align `nomic-embed-vision-v1.5` with `nomic-embed-text-v1.5`, you can run the following command:
+
+```bash
+deepspeed  train.py --deepspeed_config=configs/deepspeed/image_text.json --config=configs/train/nomic_embed_vision_v1.5.yaml --dtype=bf16
+```
 
 ### Generating Your Own Data
 

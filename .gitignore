@@ -1,3 +1,5 @@
+data/
+**/ids_to_keep_*.json
 *counts.json*
 medi*.json
 nq*

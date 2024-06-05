@@ -42,13 +42,12 @@ def clip_loss(
     if query.dtype != document.dtype:
         document = document.to(query.dtype)
 
-
     labels = torch.arange(query.shape[0]).to(device)
     similarity_query_document = logit_scale(torch.matmul(query, document.T))
     num_logits = similarity_query_document.size(0)
     rank = dist.get_rank() if dist.is_initialized() else 0
     # calculate sub-batch labels
-    labels = labels + rank * num_logits 
+    labels = labels + rank * num_logits
 
     # if training with negatives
     # multiply by world size since we only gather the document embeddings
@@ -66,68 +65,6 @@ def clip_loss(
         # this will only calculate 1/N accuracy where N is the number of gpus
         accuracy = (similarity_query_document.argmax(dim=1) == labels).float().mean()
         tracker.log({f"accuracy_{dataset}": accuracy.detach().cpu().item()}, step=step)
-
-    return loss
-
-
-def gte_loss(query: torch.Tensor, document: torch.Tensor, logit_scale, gather_enabled=False):
-    """Improved Contrastive Loss from https://arxiv.org/abs/2308.03281
-
-    Calculates an improved contrastive loss by adding query to query similarity
-    and document to document similarity to the original clip loss.
-
-    params:
-        query: torch.Tensor of shape N x D
-        document: torch.Tensor of shape M x D where M >= N
-        temperature: torch.Tensor of shape 1
-
-    returns:
-        torch.Tensor of shape 1 corresponding to the loss
-    """
-    device = query.device
-    indices = torch.arange(query.shape[0]).to(device)
-
-    if query.dtype != document.dtype:
-        document = document.to(query.dtype)
-
-    if gather_enabled:
-        query = gather(query)
-        document = gather(document)
-
-    sim_q_d = torch.matmul(query, document.T)
-    sim_q_q = torch.matmul(query, query.T)
-    sim_d_d = torch.matmul(document, document.T)
-    sim_d_q = sim_q_d.T
-
-    sim_q_d_logit_scale = logit_scale(sim_q_d)
-    sim_q_q_logit_scale = logit_scale(sim_q_q)
-    sim_d_d_logit_scale = logit_scale(sim_d_d)
-    max_val = torch.cat([sim_q_d_logit_scale, sim_q_q_logit_scale, sim_d_d_logit_scale]).max()
-
-    sim_q_d = torch.exp(sim_q_d_logit_scale - max_val)
-    sim_q_q = torch.exp(sim_q_q_logit_scale - max_val)
-    sim_d_d = torch.exp(sim_d_d_logit_scale - max_val)
-
-    sim_d_q = sim_q_d.T
-    z1 = sim_q_d.sum(dim=1, keepdim=True)
-    z2 = sim_d_q.sum(dim=1, keepdim=True)
-
-    # z3 = sum(exp(q_i, q_j)) for i != j
-    z3 = sim_q_q
-    # zero out the diagonal -> will always be 1 across the diagonal since q_i == q_i
-    z3 = z3 - torch.diag_embed(torch.diagonal(z3, dim1=-2, dim2=-1))
-    z3 = z3.sum(dim=1, keepdim=True)
-
-    z4 = sim_d_d
-    z4 = z4 - torch.diag_embed(torch.diagonal(z4, dim1=-2, dim2=-1))
-    z4 = z4.sum(dim=1, keepdim=True)
-
-    z = z1 + z2 + z3 + z4
-
-    softmax_q_d = sim_q_d / z
-
-    # could also do .diag()
-    loss = -torch.log(softmax_q_d[indices, indices]).mean()
 
     return loss
 
@@ -162,8 +99,9 @@ def cache_loss(tower1, tower2, query_embeddings, document_embeddings, logit_scal
     query_embs = query_embeddings.detach().requires_grad_()
     document_embs = document_embeddings.detach().requires_grad_()
 
-    no_tower1_sync = tower1.no_sync if tower1.training else nullcontext
-    no_tower2_sync = tower2.no_sync if tower2.training else nullcontext
+    # I'm not sure this works for LiT
+    no_tower1_sync = getattr(tower1, "no_sync", nullcontext)
+    no_tower2_sync = getattr(tower2, "no_sync", nullcontext)
 
     with no_tower1_sync():
         with no_tower2_sync():

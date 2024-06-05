@@ -32,16 +32,16 @@ model_args:
   trainable_logit_scale: false
   seq_len: 512
   pooling: "mean"
-  encoder: true
+  nomic_encoder: true
   add_prefix: true
   num_negatives: 7 
   tokenizer_name: "bert-base-uncased"
   model_name: "nomic-ai/nomic-embed-text-v1-unsupervised"
-  pretrained: null
+  pretrained: true
   hamming: true
 
 
-contrastive_data_args:
+data_args:
   input_shards: "configs/data/finetune_triplets.yaml"
   workers: 8 
   batch_size: 256

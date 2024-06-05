@@ -1,7 +1,10 @@
 import os
+from copy import deepcopy
 from functools import partial
+from typing import Optional
 
 import torch
+import torch.nn as nn
 from safetensors.torch import load_file as safe_load_file
 from transformers.utils import SAFE_WEIGHTS_INDEX_NAME, SAFE_WEIGHTS_NAME, WEIGHTS_INDEX_NAME, WEIGHTS_NAME
 from transformers.utils.hub import cached_file, get_checkpoint_shard_files

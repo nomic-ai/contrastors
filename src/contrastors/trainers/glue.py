@@ -47,11 +47,12 @@ task_to_num_labels = {
 
 class GlueTrainer(BaseTrainer):
     def __init__(self, config, dtype):
-        self.task = config.mlm_data_args.task_name
+        self.task = config.data_args.task_name
         self.is_regression = task_to_problem_type[self.task] == "regression"
         super(GlueTrainer, self).__init__(config, dtype)
 
     def get_model(self, config):
+        config = config.model_config
         model_config = NomicBertConfig.from_pretrained(config.pretrained)
         model_config.num_labels = task_to_num_labels[self.task]
         model_config.problem_type = "regression" if self.is_regression else "single_label_classification"
@@ -72,8 +73,8 @@ class GlueTrainer(BaseTrainer):
 
         return {"model": model}
 
-    def get_dataloaders(self, config):
-        data_config = config.mlm_data_args
+    def get_dataloaders(self, config, epoch=0):
+        data_config = config.data_args
         raw_datasets = load_dataset("glue", data_config.task_name)
         raw_datasets.pop("test", None)
 
@@ -126,8 +127,8 @@ class GlueTrainer(BaseTrainer):
         data_collator = DataCollatorWithPadding(self.tokenizer)
 
         if self.num_processes > 1:
-            train_sampler = DistributedSampler(train_dataset, num_replicas=self.num_processes, rank=self.process_index)
-            val_sampler = DistributedSampler(eval_dataset, num_replicas=self.num_processes, rank=self.process_index)
+            train_sampler = DistributedSampler(train_dataset)
+            val_sampler = DistributedSampler(eval_dataset)
         else:
             train_sampler = None
             val_sampler = None
@@ -174,7 +175,7 @@ class GlueTrainer(BaseTrainer):
 
     def eval_loop(self, model, dataloader, step, val_mm_dataloader=None):
         model.eval()
-        data_config = self.config.mlm_data_args
+        data_config = self.config.data_args
         metric = evaluate.load("glue", data_config.task_name)
 
         # hacky way to get mnli to work
@@ -229,3 +230,22 @@ class GlueTrainer(BaseTrainer):
                 self.log({"val_metric": val_metric, "epoch": step})
         else:
             self.print({"val_metric": val_metric})
+
+    def clip_gradients(self, max_grad_norm):
+        super().clip_gradients(max_grad_norm)
+
+    def training_step(
+        self, model, batch, optimizer, scheduler, step, train_args, total_num_steps, gradient_accumulation_steps
+    ):
+        loss = super().training_step(
+            model=model,
+            batch=batch,
+            optimizer=optimizer,
+            scheduler=scheduler,
+            step=step,
+            train_args=train_args,
+            total_num_steps=total_num_steps,
+            gradient_accumulation_steps=gradient_accumulation_steps,
+        )
+
+        return loss

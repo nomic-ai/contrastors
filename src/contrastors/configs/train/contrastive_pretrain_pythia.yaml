@@ -31,10 +31,11 @@ model_args:
   model_type: "encoder"
   seq_len: 128
   pooling: "last"
-  encoder: false
+  nomic_encoder: false
   add_prefix: true
   tokenizer_name: "EleutherAI/pythia-160m"
   model_name: "EleutherAI/pythia-160m"
+  pretrained: true
   gradient_checkpointing: false
 
 contrastive_data_args:

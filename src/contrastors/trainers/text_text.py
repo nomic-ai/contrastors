@@ -1,4 +1,3 @@
-import torch.nn.functional as F
 import numpy as np
 import torch
 import torch.distributed as dist
@@ -6,7 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
-from contrastors.dataset.torch_loader import StreamingShardDataset, collate_fn, get_local_dataloader
+from contrastors.dataset.text_text_loader import StreamingShardDataset, collate_fn, get_local_dataloader
 from contrastors.distributed import gather_with_grad
 from contrastors.loss import clip_loss, grad_cache_loss
 from contrastors.models import BiEncoder, BiEncoderConfig, LogitScale
@@ -14,10 +13,9 @@ from contrastors.models import BiEncoder, BiEncoderConfig, LogitScale
 from .base import BaseTrainer
 
 
-class CLIPTrainer(BaseTrainer):
+class TextTextTrainer(BaseTrainer):
     def __init__(self, config, dtype):
-        super(CLIPTrainer, self).__init__(config, dtype)
-
+        super(TextTextTrainer, self).__init__(config, dtype)
         self.use_grad_cache = config.train_args.grad_cache
         self.matryoshka_dims = config.train_args.matryoshka_dims
         if self.matryoshka_dims:
@@ -30,20 +28,22 @@ class CLIPTrainer(BaseTrainer):
             self.matryoshka_loss_weights = None
 
     def get_model(self, config):
-        if config.pretrained is None:
+        config = config.model_args
+        if config.checkpoint is None:
             config = BiEncoderConfig(
                 model_name=config.model_name,
                 pooling=config.pooling,
                 logit_scale=config.logit_scale,
-                encoder=config.encoder,
+                nomic_encoder=config.nomic_encoder,
                 trainable_logit_scale=config.trainable_logit_scale,
                 hamming=config.hamming,
+                pretrained=config.pretrained,
                 gradient_checkpointing=config.gradient_checkpointing,
             )
             model = BiEncoder(config)
         else:
-            self.print(f"Loading model from {config.pretrained}")
-            model_config = BiEncoderConfig.from_pretrained(config.pretrained)
+            self.print(f"Loading model from {config.checkpoint}")
+            model_config = BiEncoderConfig.from_pretrained(config.checkpoint)
             if config.projection_dim is not None:
                 model_config.projection_dim = config.projection_dim
             if config.gradient_checkpointing:
@@ -54,7 +54,7 @@ class CLIPTrainer(BaseTrainer):
             model = model.to("cuda")
             model = torch.nn.parallel.DistributedDataParallel(
                 model,
-                device_ids=[self.process_index],  
+                device_ids=[self.process_index],
             )
 
         scale = LogitScale(config)
@@ -69,9 +69,9 @@ class CLIPTrainer(BaseTrainer):
 
         return {"model": model, "logit_scale": scale}
 
-    def get_dataloaders(self, config):
+    def get_dataloaders(self, config, epoch=0):
         train_args = config.train_args
-        data_config = config.contrastive_data_args
+        data_config = config.data_args
         model_args = config.model_args
         gradient_accumulation_steps = train_args.gradient_accumulation_steps
         if data_config.streaming:
@@ -80,7 +80,7 @@ class CLIPTrainer(BaseTrainer):
                 data_config.batch_size,
                 self.tokenizer,
                 seed=data_config.seed,
-                add_eos=model_args.encoder != True,
+                add_eos=model_args.nomic_encoder != True,
                 add_prefix=model_args.add_prefix,
                 num_negatives=model_args.num_negatives,
                 download_locally=data_config.download,
@@ -123,13 +123,16 @@ class CLIPTrainer(BaseTrainer):
 
     def save_model(self, output_dir):
         super().save_model(output_dir)
-        if self.process_index == 0:
-            logit_scale = self.model["logit_scale"]
+        if self.global_rank == 0:
+            logit_scale = self.model.get("logit_scale", None)
             if isinstance(logit_scale, (nn.Module, nn.DataParallel, nn.parallel.DistributedDataParallel)) and any(
                 p.requires_grad for p in logit_scale.parameters()
             ):
                 unwrapped_scale = self.unwrap(logit_scale)
                 torch.save(unwrapped_scale.state_dict(), f"{output_dir}/logit_scale.pt")
+
+    def clip_gradients(self, max_grad_norm):
+        super().clip_gradients(max_grad_norm)
 
     def forward_step(self, model, inputs, logit_scale, **kwargs):
         model.train()
@@ -227,7 +230,7 @@ class CLIPTrainer(BaseTrainer):
 
         return loss
 
-    def traininig_step(
+    def training_step(
         self, model, batch, optimizer, scheduler, step, train_args, total_num_steps, gradient_accumulation_steps
     ):
         loss = super().training_step(

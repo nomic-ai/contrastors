@@ -18,6 +18,7 @@ class MLMTrainer(BaseTrainer):
         super(MLMTrainer, self).__init__(config, dtype)
 
     def get_model(self, config):
+        config = config.model_args
         hf_config = BertConfig.from_pretrained(config.model_name)
         if hf_config.vocab_size != len(self.tokenizer):
             self.print(f"Resizing model vocab from {hf_config.vocab_size} to {len(self.tokenizer)}")
@@ -50,9 +51,9 @@ class MLMTrainer(BaseTrainer):
 
         return {"model": model}
 
-    def get_dataloaders(self, config):
+    def get_dataloaders(self, config, epoch=0):
         train_args = config.train_args
-        data_config = config.mlm_data_args
+        data_config = config.data_args
         with self.main_process_first():
             dataset = load_dataset(data_config.tokenized_dataset, split="train")
             tokenized_datasets = dataset.shuffle(seed=data_config.seed)
@@ -60,10 +61,8 @@ class MLMTrainer(BaseTrainer):
             train_tokenized, val_tokenized = split["train"], split["test"]
 
         if self.num_processes > 1:
-            train_sampler = DistributedSampler(
-                train_tokenized, num_replicas=self.num_processes, rank=self.process_index
-            )
-            val_sampler = DistributedSampler(val_tokenized, num_replicas=self.num_processes, rank=self.process_index)
+            train_sampler = DistributedSampler(train_tokenized)
+            val_sampler = DistributedSampler(val_tokenized)
         else:
             train_sampler = None
             val_sampler = None
@@ -134,3 +133,22 @@ class MLMTrainer(BaseTrainer):
             self.log({"val_loss": val_loss, "val_ppl": ppl}, step=step)
         else:
             self.print({"val_loss": val_loss, "val_ppl": ppl})
+
+    def clip_gradients(self, max_grad_norm):
+        super().clip_gradients(max_grad_norm)
+
+    def training_step(
+        self, model, batch, optimizer, scheduler, step, train_args, total_num_steps, gradient_accumulation_steps
+    ):
+        loss = super().training_step(
+            model=model,
+            batch=batch,
+            optimizer=optimizer,
+            scheduler=scheduler,
+            step=step,
+            train_args=train_args,
+            total_num_steps=total_num_steps,
+            gradient_accumulation_steps=gradient_accumulation_steps,
+        )
+
+        return loss

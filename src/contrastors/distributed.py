@@ -11,6 +11,7 @@ def gather_with_grad(t):
 
     return torch.cat(torch.distributed.nn.all_gather(t), dim=0)
 
+
 def gather(t):
     # torch.distributed.nn.all_gather scales by world size since the reduce op is SUM
     # https://github.com/pytorch/pytorch/issues/58005

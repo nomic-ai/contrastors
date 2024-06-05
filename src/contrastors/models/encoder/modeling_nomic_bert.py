@@ -15,7 +15,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from einops import rearrange
 from flash_attn.bert_padding import index_first_axis, pad_input, unpad_input
-from flash_attn.ops.rms_norm import RMSNorm, dropout_add_rms_norm, rms_norm
+from flash_attn.ops.rms_norm import RMSNorm, rms_norm
 from safetensors.torch import load_file as safe_load_file
 from transformers import GPT2Config, PreTrainedModel
 from transformers.models.bert.modeling_bert import (
@@ -233,6 +233,10 @@ class NomicBertEncoder(NomicBertPreTrainedModel):
                     use_cache,
                     cu_seqlens=cu_seqlens,
                     max_seq_len=max_seqlen_in_batch,
+                    kv_hidden_states=kv_hidden_states,
+                    kv_indices=kv_indices,
+                    kv_cu_seqlens=kv_cu_seqlens,
+                    kv_max_seqlen=kv_max_seqlen,
                 )
         hidden_states = pad_input(hidden_states, indices, batch, seqlen)
         return hidden_states

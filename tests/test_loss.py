@@ -1,5 +1,5 @@
 import torch
-from contrastors.loss import clip_loss, gte_loss
+from contrastors.loss import clip_loss
 
 
 def test_clip_loss():

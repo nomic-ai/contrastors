@@ -1,0 +1,77 @@
+train_args:
+  num_epochs: 3
+  learning_rate: 1.0e-3
+  weight_decay: 0
+  warmup_steps: 2000 
+  cooldown_steps: null
+  checkpoint: null
+  wandb: true
+  wandb_project_name: "image-text"
+  wandb_entity: "gpt4all"
+  wandb_run_name: "nomic-embed-vision-v1.5"
+  profile: false
+  log_grads_every: 100
+  log_lr_every: 10
+  save_every: 25000
+  eval_steps: 1000
+  eval_strategy: "steps"
+  chunk_size: 1536
+  output_dir: "ckpts/nomic-embed-vision-v1.5"
+  # if using deepspeed, this will be ignored
+  schedule_type: "cosine"
+  max_grad_norm: 1.0
+  adam_beta1: 0.9
+  adam_beta2: 0.95
+  grad_cache: false
+  loss_fn: "clip"
+  add_l2_loss: false
+  pretrained: null
+  pooling: "last"
+  use_fp8: false
+  clamp_logits: false 
+  logit_max: 100
+
+data_args:
+  image_text_shards: "s3://dfn-datacomp-large/{00000000..00015444}.tar"
+  eval_flickr: true
+  # (TODO): zanussbaum up workers and check deterministic
+  workers: 8 
+  # this is per gpu batch size
+  batch_size: 16384 
+  eval_batch_size: 16384
+  seed: 42
+  shuffle: false
+  imagenet_val_path: "/root/imagenet"
+  dataset_resampled: false
+
+model_args:
+  model_type: "locked_text"
+
+text_model_args:
+  model_type: "locked_text"
+  seq_len: 77
+  model_name: "nomic-ai/nomic-embed-text-v1.5"
+  tokenizer_name: "nomic-ai/nomic-embed-text-v1.5"
+  pooling: "mean"
+  freeze: true
+  add_prefix: true
+  projection_dim: null
+  nomic_encoder: true
+  pretrained: true
+  ema: false
+  precomputed: false
+  hamming: true
+
+vision_model_args:
+  model_type: "locked_text"
+  model_name: "nomic-ai/vit_eva02_base_patch16_224.mim_in22k"
+  pretrained: true
+  pooling: "map"
+  freeze: false
+  nomic_encoder: false
+  logit_scale: null
+  trainable_logit_scale: true
+  gradient_checkpointing: true
+
+transforms:
+  image_size: 224

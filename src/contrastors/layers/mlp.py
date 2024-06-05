@@ -47,6 +47,7 @@ class GatedMLP(nn.Module):
         hidden_features_scaling_factor=1,
         return_residual=False,
         fused_bias_fc=True,
+        norm_layer=False,
         device=None,
         dtype=None,
     ):
@@ -62,6 +63,7 @@ class GatedMLP(nn.Module):
         self.fc12 = linear_cls(in_features, hidden_features, bias=bias1)
         self.activation = activation
         self.fc2 = linear_cls(hidden_features, out_features, bias=bias2)
+        self.norm = nn.LayerNorm(hidden_features) if norm_layer else nn.Identity()
 
     def forward(self, x):
         y = self.fc11(x)
@@ -73,5 +75,9 @@ class GatedMLP(nn.Module):
             y = swiglu(gate, y)
         else:
             y = y * self.activation(gate)
+
+        # eva uses layer norm after the activation
+        y = self.norm(y)
+
         y = self.fc2(y)
         return y if not self.return_residual else (y, x)

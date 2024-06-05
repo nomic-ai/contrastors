@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 import numpy as np
 import torch
 import torch.distributed as dist
@@ -7,7 +9,6 @@ from transformers import AutoModel, AutoTokenizer
 
 from contrastors.loss import clip_loss, grad_cache_loss
 from contrastors.models.biencoder import LogitScale
-from dataclasses import dataclass
 
 # NOTE this requires you to pip install grad cache: https://github.com/luyug/GradCache/tree/main
 # TODO: loss is the same but gradients aren't -> they are like 2x the other loss
@@ -31,12 +32,11 @@ def print_rank0(*args, **kwargs):
     if dist.get_rank() == 0:
         print(*args, **kwargs)
 
-        
+
 @dataclass
 class LogitScaleConfig:
-    logit_scale = 1/0.07
+    logit_scale = 1 / 0.07
     trainable_logit_scale = False
-
 
 
 if __name__ == "__main__":
@@ -87,7 +87,7 @@ if __name__ == "__main__":
     model = nn.parallel.DistributedDataParallel(
         ModelWrapper(encoder), device_ids=[rank], output_device=rank, broadcast_buffers=False
     )
-    
+
     scale = LogitScale(LogitScaleConfig())
     our_loss = grad_cache_loss(
         tower1=model, tower2=model, t1_inputs=query_inputs, t2_inputs=document_inputs, chunk_size=2, logit_scale=scale

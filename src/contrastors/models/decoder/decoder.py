@@ -10,6 +10,8 @@ from transformers import GPT2Config, PreTrainedModel
 from transformers.modeling_outputs import BaseModelOutputWithPast
 
 from contrastors.layers import Block, ParallelBlock
+from contrastors.layers.embedding import BertEmbeddings
+from contrastors.models.decoder.clip_decoder import remap_state_dict_hf_clip_text
 from contrastors.models.decoder.gpt_neox import remap_state_dict_hf_gpt_neox
 from contrastors.models.decoder.open_lm import remap_state_dict_hf_open_lm
 from contrastors.models.model_utils import state_dict_from_pretrained
@@ -65,6 +67,9 @@ class DecoderPretrainedModel(PreTrainedModel):
             state_dict = remap_state_dict_hf_gpt_neox(state_dict, config)
         elif model_name.startswith("nomic-ai/open_lm_"):
             state_dict = remap_state_dict_hf_open_lm(state_dict, config)
+        elif model_name.startswith("openai/clip"):
+            text_only_state_dict = {k: v for k, v in state_dict.items() if "text_model" in k}
+            state_dict = remap_state_dict_hf_clip_text(text_only_state_dict, config)
         else:
             raise NotImplementedError(f"Model {model_name} not supported")
 
@@ -101,11 +106,14 @@ class DecoderPretrainedModel(PreTrainedModel):
 class DecoderModel(DecoderPretrainedModel):
     def __init__(self, config: GPT2Config):
         super().__init__(config)
+        if config.activation_function == "gelu_python":
+            config.activation_function = "gelu"
         assert config.activation_function in [
             "gelu",
             "gelu_new",
             "gelu_fast",
             "gelu_approx",
+            "quick_gelu",
             "relu",
             "sqrelu",
             "glu",
@@ -125,7 +133,10 @@ class DecoderModel(DecoderPretrainedModel):
         # For GPT-J, GPT-NeoX
         self.parallel_block = getattr(config, "parallel_block", False)
 
-        self.embeddings = nn.Embedding(vocab_size, config.n_embd, config.pad_token_id)
+        if config.n_positions > 0:
+            self.embeddings = BertEmbeddings(config)
+        else:
+            self.embeddings = nn.Embedding(vocab_size, config.n_embd, config.pad_token_id)
 
         # We change the order of dropout, residual and layer norm:
         # Instead of LN -> Attn / MLP -> Dropout -> Add, we do:

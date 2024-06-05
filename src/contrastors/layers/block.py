@@ -8,6 +8,7 @@ from flash_attn.ops.layer_norm import dropout_add_layer_norm, dropout_add_layer_
 from flash_attn.ops.rms_norm import RMSNorm, dropout_add_rms_norm, dropout_add_rms_norm_parallel_residual
 from torchvision.ops import StochasticDepth
 
+from contrastors.layers.activations import quick_gelu
 from contrastors.layers.attention import FlashAttention
 from contrastors.layers.mlp import MLP, GatedMLP
 
@@ -40,7 +41,11 @@ class ParallelBlock(nn.Module):
         activation = (
             F.sigmoid
             if config.activation_function == "glu"
-            else (F.silu if config.activation_function == "swiglu" else F.gelu)
+            else (
+                F.silu
+                if config.activation_function == "swiglu"
+                else (quick_gelu if config.activation_function == "quick_gelu" else F.gelu)
+            )
         )
         if config.activation_function in ["glu", "swiglu"]:
             self.mlp = GatedMLP(
@@ -50,6 +55,7 @@ class ParallelBlock(nn.Module):
                 bias2=config.mlp_fc2_bias,
                 activation=activation,
                 fused_bias_fc=config.fused_bias_fc,
+                norm_layer=getattr(config, "norm_mlp", False),
             )
         else:
             self.mlp = MLP(
@@ -161,12 +167,18 @@ class Block(nn.Module):
         super().__init__()
         self.prenorm = config.prenorm
         self.fused_dropout_add_ln = config.fused_dropout_add_ln
+        self.is_decoder = getattr(config, "is_decoder", False)
 
         self.attn = FlashAttention(config)
+
         activation = (
             F.sigmoid
             if config.activation_function == "glu"
-            else (F.silu if config.activation_function == "swiglu" else F.gelu)
+            else (
+                F.silu
+                if config.activation_function == "swiglu"
+                else (quick_gelu if config.activation_function == "quick_gelu" else F.gelu)
+            )
         )
         if config.activation_function in ["glu", "swiglu", "geglu"]:
             self.mlp = GatedMLP(
@@ -176,6 +188,7 @@ class Block(nn.Module):
                 bias2=config.mlp_fc2_bias,
                 activation=activation,
                 fused_bias_fc=config.fused_bias_fc,
+                norm_layer=getattr(config, "norm_mlp", False),
             )
         else:
             self.mlp = MLP(
@@ -218,15 +231,17 @@ class Block(nn.Module):
         use_cache: Optional[bool] = False,
         cu_seqlens: Optional[torch.Tensor] = None,
         max_seq_len: Optional[int] = None,
+        kv_hidden_states: Optional[torch.Tensor] = None,
+        kv_indices: Optional[torch.LongTensor] = None,
+        kv_cu_seqlens: Optional[torch.LongTensor] = None,
+        kv_max_seqlen: Optional[int] = None,
+        rope: Optional[torch.Tensor] = None,
     ):
         r"""Pass the input through the encoder layer.
 
         Args:
             hidden_states: the sequence to the encoder layer (required).
             residual: if postnorm, residual=None, If prenorm, hidden_states = Attn/MLP(LN(residual))
-            mixer_subset: for cross-attention only. If not None, will take a subset of x
-                before applying the query projection. Useful for e.g., ViT where we only care
-                about the CLS token in the last layer.
         """
         fused_add_norm_fn = (
             dropout_add_rms_norm if RMSNorm and isinstance(self.norm1, RMSNorm) else dropout_add_layer_norm
@@ -264,7 +279,20 @@ class Block(nn.Module):
                 is_padded_inputs=is_padded_inputs,
                 cu_seqlens=cu_seqlens,
                 max_seq_len=max_seq_len,
+                rope=rope,
             )
+            if self.is_decoder:
+                hidden_states = self.cross_attn(
+                    hidden_states,
+                    kv_hidden_states=kv_hidden_states,
+                    kv_indices=kv_indices,
+                    kv_cu_seqlens=kv_cu_seqlens,
+                    kv_max_seq_len=kv_max_seqlen,
+                    attention_mask=attention_mask,
+                    is_padded_inputs=is_padded_inputs,
+                    cu_seqlens=cu_seqlens,
+                    max_seq_len=max_seq_len,
+                )
             if not self.fused_dropout_add_ln:
                 if self.layer_scale:
                     hidden_states = hidden_states * self.ls1
@@ -291,6 +319,7 @@ class Block(nn.Module):
                     self.dropout2.p if self.training else 0.0,
                     self.norm2.eps,
                     rowscale=rowscale2,
+                    # use ls1 since we shift the ordering of prenorm layers, see comments above
                     layerscale=None if not self.layer_scale else self.ls1,
                     prenorm=True,
                     residual_in_fp32=self.residual_in_fp32,
@@ -309,7 +338,20 @@ class Block(nn.Module):
                 is_padded_inputs=is_padded_inputs,
                 cu_seqlens=cu_seqlens,
                 max_seq_len=max_seq_len,
+                rope=rope,
             )
+            if self.is_decoder:
+                attn_outputs = self.cross_attn(
+                    hidden_states,
+                    kv_hidden_states=kv_hidden_states,
+                    kv_indices=kv_indices,
+                    kv_cu_seqlens=kv_cu_seqlens,
+                    kv_max_seq_len=kv_max_seqlen,
+                    attention_mask=attention_mask,
+                    is_padded_inputs=is_padded_inputs,
+                    cu_seqlens=cu_seqlens,
+                    max_seq_len=max_seq_len,
+                )
             if not self.fused_dropout_add_ln:
                 hidden_states = self.norm1(
                     (self.drop_path1(self.dropout1(attn_outputs)) + hidden_states).to(dtype=self.norm1.weight.dtype)

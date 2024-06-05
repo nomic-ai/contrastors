@@ -9,10 +9,11 @@ class BiEncoderConfig(PretrainedConfig):
         logit_scale=1 / 0.07,
         use_fused_kernels=True,
         pooling="last",
-        encoder=False,
+        nomic_encoder=False,
         freeze=False,
         trainable_logit_scale=False,
         hamming=False,
+        pretrained=False,
         gradient_checkpointing=False,
         **kwargs,
     ):
@@ -23,7 +24,8 @@ class BiEncoderConfig(PretrainedConfig):
         self.trainable_logit_scale = trainable_logit_scale
         self.use_fused_kernels = use_fused_kernels
         self.pooling = pooling
-        self.encoder = encoder
+        self.nomic_encoder = nomic_encoder
         self.freeze = freeze
         self.hamming = hamming
+        self.pretrained = pretrained
         self.gradient_checkpointing = gradient_checkpointing

@@ -46,6 +46,7 @@ class StreamingShardDataset(IterableDataset):
         process_one_shard=False,
         weighted_sampling=False,
         verbose=False,
+        infinite=False,
     ):
         self.num_samples_per_shard = {}
         self.max_per_shard = {}
@@ -67,6 +68,7 @@ class StreamingShardDataset(IterableDataset):
         self.current_shard = None
         self.weighted_sampling = weighted_sampling
         self.verbose = verbose
+        self.infinite = infinite
 
         if dist.is_initialized():
             self.local_rank = int(os.environ["LOCAL_RANK"])
@@ -82,7 +84,9 @@ class StreamingShardDataset(IterableDataset):
         # when `parse_spec` is called, if this is not s3, it will be updated
         self.filesystem = "s3"
         self.fs = fsspec.filesystem(self.filesystem, config_kwargs={"connect_timeout": 600, "read_timeout": 600})
-        self.paths = self.parse_spec(ds_spec)
+        self.ds_paths = self.parse_spec(ds_spec)
+        self.current_paths = [path for path in self.ds_paths]
+
         print_rank_zero(f"Total samples: {self.total_samples:,}")
         print_rank_zero("Number of samples per dataset")
         print_rank_zero(json.dumps(self.max_per_ds, indent=3))
@@ -98,7 +102,7 @@ class StreamingShardDataset(IterableDataset):
 
         self.path = f"{path}/rank_{self.rank}_processed.json"
         with open(self.path, "w") as f:
-            json.dump({path: 0 for path in self.paths}, f, indent=3)
+            json.dump({path: 0 for path in self.ds_paths}, f, indent=3)
 
         if self.weighted_sampling:
             self.weights = self.calculate_weights()
@@ -198,7 +202,7 @@ class StreamingShardDataset(IterableDataset):
         """
         1. Read from saved files
         2. rewrite current_processed to `self.path
-        3. remove all that have been processed from self.paths
+        3. remove all that have been processed from self.ds_paths
         """
         with open(f"{path}/rank_{self.rank}_processed.json") as f:
             processed = json.load(f)
@@ -208,7 +212,7 @@ class StreamingShardDataset(IterableDataset):
             json.dump(processed, f, indent=3)
 
         to_remove = []
-        for path in self.paths:
+        for path in self.ds_paths:
             if processed[path] >= self.max_per_shard[path]:
                 print(
                     f"Rank: {self.rank} has already processed {processed[path]} samples from {path}, removing from paths"
@@ -216,54 +220,65 @@ class StreamingShardDataset(IterableDataset):
                 to_remove.append(path)
 
         for path in to_remove:
-            self.paths.remove(path)
+            self.ds_paths.remove(path)
 
     def __len__(self):
         return self.total_samples
 
     def __iter__(self):
-        while self.paths:  # Continue until all files are exhausted
-            stream, path = self.get_next_stream()
-            normalized_path = self.normalize_url([path])[0]
-            if stream is None:
-                break
-
-            batch = []
-            # Fetching batch_size lines to form a batch
-            for item in stream:
-                batch.append(item)
-                if len(batch) >= self.rank_batch_size:
+        while True:
+            while self.current_paths:
+                stream, path = self.get_next_stream()
+                normalized_path = self.normalize_url([path])[0]
+                if stream is None:
                     break
 
-            # rough approximation, this won't work if the shard runs out of data
-            current_processed = json.load(open(self.path))
-            current_processed[path] += len(batch)
+                batch = []
+                # Fetching batch_size lines to form a batch
+                for item in stream:
+                    batch.append(item)
+                    if len(batch) >= self.rank_batch_size:
+                        break
+
+                # rough approximation, this won't work if the shard runs out of data
+                current_processed = json.load(open(self.path))
+                current_processed[path] += len(batch)
+                with open(self.path, "w") as f:
+                    json.dump(current_processed, f, indent=3)
+
+                if current_processed[path] >= self.max_per_shard[normalized_path]:
+                    if self.verbose:
+                        print_rank_zero(f"Finished processing {path}")
+                    self.current_paths.remove(path)
+                    # if we only process one shard at a time
+                    if self.process_one_shard:
+                        self.current_shard = None
+
+                # after the rounding down above, this should never happen
+                if len(batch) < self.rank_batch_size:
+                    raise ValueError(
+                        f"Batch size {len(batch)} is too small, something went wrong on rank {self.rank} for path {path}"
+                    )
+
+                batch = self.tokenize_pairs(batch, self.path2objective[normalized_path])
+
+                yield batch
+
+                if self.weighted_sampling:
+                    self.weights = self.calculate_weights()
+                    if self.verbose:
+                        print_rank_zero("Weighting per file")
+                        print_rank_zero(json.dumps(self.weights, indent=3))
+
+            if not self.infinite:
+                break
+
+            if self.verbose:
+                print_rank_zero("Finished all shards, resetting")
+
+            self.current_paths = [path for path in self.ds_paths]
             with open(self.path, "w") as f:
-                json.dump(current_processed, f, indent=3)
-
-            if current_processed[path] >= self.max_per_shard[normalized_path]:
-                if self.verbose:
-                    print_rank_zero(f"Finished processing {normalized_path}")
-                self.paths.remove(path)
-                # if we only process one shard at a time
-                if self.process_one_shard:
-                    self.current_shard = None
-
-            # after the rounding down above, this should never happen
-            if len(batch) < self.rank_batch_size:
-                raise ValueError(
-                    f"Batch size {len(batch)} is too small, something went wrong on rank {self.rank} for path {normalized_path}"
-                )
-
-            batch = self.tokenize_pairs(batch, self.path2objective[normalized_path])
-
-            yield batch
-
-            if self.weighted_sampling:
-                self.weights = self.calculate_weights()
-                if self.verbose:
-                    print_rank_zero("Weighting per file")
-                    print_rank_zero(json.dumps(self.weights, indent=3))
+                json.dump({path: 0 for path in self.current_paths}, f, indent=3)
 
     def calculate_weights(self):
         total_size = sum(self.num_samples_per_shard.values())
@@ -278,20 +293,20 @@ class StreamingShardDataset(IterableDataset):
         return weights
 
     def get_next_stream(self):
-        if not self.paths:
+        if not self.current_paths:
             return None, None
 
         if self.process_one_shard:
             if self.current_shard is None:
-                self.current_shard = self.rng.choice(self.paths)
+                self.current_shard = self.rng.choice(self.current_paths)
             next_uri = self.current_shard
         else:
             # Randomly select the next S3 URI
             if self.weighted_sampling:
-                current_weights = [self.weights[path] for path in self.paths]
-                next_uri = self.rng.choices(self.paths, weights=current_weights, k=1)[0]
+                current_weights = [self.weights[path] for path in self.current_paths]
+                next_uri = self.rng.choices(self.current_paths, weights=current_weights, k=1)[0]
             else:
-                next_uri = self.rng.choice(self.paths)
+                next_uri = self.rng.choice(self.current_paths)
 
         current_processed = json.load(open(self.path))
         # total number of samples processed by all ranks, this marks the start of the next rank's batch

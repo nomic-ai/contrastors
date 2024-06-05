@@ -46,7 +46,7 @@ model_args:
   attn_pdrop: 0.0
   gradient_checkpointing: false
 
-mlm_data_args:
+data_args:
   tokenized_dataset: "nomic-ai/bert-pretokenized-2048-wiki-2023"
   workers: 4
   batch_size: 1024

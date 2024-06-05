@@ -41,7 +41,6 @@ def configure_optimizer(modules, args):
             "lr": args.learning_rate,
         },
         {"params": [param_dict[pn] for pn in sorted(list(no_decay))], "weight_decay": 0.0, "lr": args.learning_rate},
-        # if we want different learning rates for the projection layer and encoder
     ]
 
     optimizer = AdamW(optim_groups, betas=(args.adam_beta1, args.adam_beta2), eps=args.eps)

@@ -330,10 +330,14 @@ class Encoder:
 class HFEncoder(Encoder):
     def __init__(self, model_name, seq_length):
         self.model = AutoModel.from_pretrained(model_name, trust_remote_code=True)
+        self.model.eval()
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
 
-        self.model.eval()
-        self.tokenizer.model_max_length = seq_length
+        self.clip_model = self.model.config.model_type == "clip"
+
+        # case for clip where it only has 77 tokens
+        if self.tokenizer.model_max_length > seq_length:
+            self.tokenizer.model_max_length = seq_length
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     def mean_pooling(self, model_output, attention_mask):
@@ -351,8 +355,12 @@ class HFEncoder(Encoder):
             for i in range(0, len(sentences), batch_size):
                 batch = sentences[i : i + batch_size]
                 encoded = self.tokenizer(batch, padding=True, truncation=True, return_tensors="pt")
-                outputs = self.model(**encoded.to(device))
-                pooled = self.mean_pooling(outputs, encoded["attention_mask"].to(device))
+                if not self.clip_model:
+                    outputs = self.model(**encoded.to(device))
+                    pooled = self.mean_pooling(outputs, encoded["attention_mask"].to(device))
+                else:
+                    pooled = self.model.get_text_features(**encoded.to(device))
+
                 embeddings.extend(pooled.cpu().float().numpy())
 
         return embeddings

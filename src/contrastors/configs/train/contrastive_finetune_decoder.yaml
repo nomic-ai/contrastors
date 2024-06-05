@@ -30,12 +30,12 @@ model_args:
   trainable_logit_scale: false
   seq_len: 128
   pooling: "last"
-  encoder: false
+  nomic_encoder: false
   add_prefix: true
   num_negatives: 7 
   tokenizer_name: "EleutherAI/pythia-160m"
   model_name: "EleutherAI/pythia-160m"
-  pretrained: null
+  pretrained: true
 
 
 contrastive_data_args:

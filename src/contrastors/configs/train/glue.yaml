@@ -29,7 +29,7 @@ model_args:
   tokenizer_name: "bert-base-uncased"
   pretrained: "ckpts/mlm-trainer/epoch_0_model"
 
-mlm_data_args:
+data_args:
   task_name: "cola"
   workers: -1 
   batch_size: 16

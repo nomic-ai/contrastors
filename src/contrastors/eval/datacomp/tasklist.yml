@@ -1,0 +1,391 @@
+---
+
+# Caltech-101
+vtab/caltech101:
+  name: Caltech-101
+  size: 6085
+  main_metric: mean_per_class_recall
+  time: 29
+  num_classes: 102
+  random_score: 0.009804
+  tags:
+    - vtab_natural
+
+# CIFAR-10
+cifar10:
+  name: CIFAR-10
+  size: 10000
+  time: 18
+  num_classes: 10
+  random_score: 0.100000
+  tags: []
+
+# CIFAR-100
+vtab/cifar100:
+  name: CIFAR-100
+  size: 10000
+  time: 18
+  num_classes: 100
+  random_score: 0.010000
+  tags:
+    - vtab_natural
+
+# CLEVR Counts
+vtab/clevr_count_all:
+  name: CLEVR Counts
+  size: 15000
+  time: 64
+  num_classes: 8
+  random_score: 0.125061
+  tags:
+    - vtab_structured
+
+# CLEVR Distance
+vtab/clevr_closest_object_distance:
+  name: CLEVR Distance
+  size: 15000
+  time: 64
+  num_classes: 6
+  random_score: 0.190520
+  tags:
+    - vtab_structured
+
+# Country211
+country211:
+  name: Country211
+  size: 21100
+  time: 66
+  num_classes: 211
+  random_score: 0.004739
+  tags: []
+
+# Describable Textures
+vtab/dtd:
+  name: Describable Textures
+  size: 1880
+  time: 17
+  num_classes: 47
+  random_score: 0.021277
+  tags:
+    - vtab_natural
+
+# EuroSAT
+vtab/eurosat:
+  name: EuroSAT
+  size: 5400
+  time: 12
+  num_classes: 10
+  random_score: 0.101483
+  tags:
+    - vtab_specialized
+
+# FGVC Aircraft
+fgvc_aircraft:
+  name: FGVC Aircraft
+  size: 3333
+  main_metric: mean_per_class_recall
+  time: 40
+  num_classes: 100
+  random_score: 0.010000
+  tags: []
+
+# Food-101
+food101:
+  name: Food-101
+  size: 25250
+  time: 101
+  num_classes: 101
+  random_score: 0.009901
+  tags: []
+
+# GTSRB
+gtsrb:
+  name: GTSRB
+  size: 12630
+  time: 20
+  num_classes: 43
+  random_score: 0.037604
+  tags: []
+
+# ImageNet 1k
+imagenet1k:
+  name: ImageNet 1k
+  size: 50000
+  time: 136
+  num_classes: 1000
+  random_score: 0.001000
+
+# ImageNet Sketch
+imagenet_sketch:
+  name: ImageNet Sketch
+  size: 50889
+  time: 249
+  num_classes: 1000
+  random_score: 0.001000
+  tags: []
+
+# ImageNet v2
+imagenetv2:
+  name: ImageNet v2
+  size: 10000
+  time: 50
+  num_classes: 1000
+  random_score: 0.001000
+  tags: []
+
+# ImageNet-A
+imagenet-a:
+  name: ImageNet-A
+  size: 7500
+  time: 47
+  num_classes: 200
+  random_score: 0.008056
+  tags: []
+
+# ImageNet-O
+imagenet-o:
+  name: ImageNet-O
+  size: 2000
+  time: 19
+  num_classes: 200
+  random_score: 0.006047
+  tags: []
+
+# ImageNet-R
+imagenet-r:
+  name: ImageNet-R
+  size: 30000
+  time: 148
+  num_classes: 200
+  random_score: 0.006163
+  tags: []
+
+# KITTI Vehicle Distance
+vtab/kitti_closest_vehicle_distance:
+  name: KITTI Vehicle Distance
+  size: 711
+  time: 16
+  num_classes: 4
+  random_score: 0.295289
+  tags:
+    - vtab_structured
+
+# MNIST
+mnist:
+  name: MNIST
+  size: 10000
+  time: 20
+  num_classes: 10
+  random_score: 0.100350
+  tags: []
+
+# ObjectNet
+objectnet:
+  name: ObjectNet
+  size: 18574
+  time: 317
+  num_classes: 113
+  random_score: 0.009481
+  tags: []
+
+# Oxford Flowers-102
+vtab/flowers:
+  name: Oxford Flowers-102
+  size: 6149
+  main_metric: mean_per_class_recall
+  time: 51
+  num_classes: 102
+  random_score: 0.009804
+  tags:
+    - vtab_natural
+
+# Oxford-IIIT Pet
+vtab/pets:
+  name: Oxford-IIIT Pet
+  size: 3669
+  main_metric: mean_per_class_recall
+  time: 34
+  num_classes: 37
+  random_score: 0.027027
+  tags:
+    - vtab_natural
+
+# Pascal VOC 2007
+voc2007:
+  name: Pascal VOC 2007
+  size: 14976
+  time: 41
+  num_classes: 20
+  random_score: 0.154038
+  tags: []
+
+# PatchCamelyon
+vtab/pcam:
+  name: PatchCamelyon
+  size: 32768
+  time: 38
+  num_classes: 2
+  random_score: 0.500000
+  tags:
+    - vtab_specialized
+
+# Rendered SST2
+renderedsst2:
+  name: Rendered SST2
+  size: 1821
+  time: 10
+  num_classes: 2
+  random_score: 0.500001
+  tags: []
+
+# RESISC45
+vtab/resisc45:
+  name: RESISC45
+  size: 6300
+  time: 28
+  num_classes: 45
+  random_score: 0.022342
+  tags:
+    - vtab_specialized
+
+# Stanford Cars
+cars:
+  name: Stanford Cars
+  size: 8041
+  time: 59
+  num_classes: 196
+  random_score: 0.005160
+  tags: []
+
+# STL-10
+stl10:
+  name: STL-10
+  size: 8000
+  time: 20
+  num_classes: 10
+  random_score: 0.100000
+  tags: []
+
+# SUN397
+sun397:
+  name: SUN397
+  size: 108754
+  time: 923
+  num_classes: 397
+  random_score: 0.004645
+  tags:
+    - vtab_natural
+
+# SVHN
+vtab/svhn:
+  name: SVHN
+  size: 26032
+  time: 39
+  num_classes: 10
+  random_score: 0.117897
+  tags:
+    - vtab_natural
+
+# Retrieval datasets
+
+# Flickr30k
+retrieval/flickr_1k_test_image_text_retrieval:
+  name: Flickr
+  size: 1000
+  main_metric: mean_recall@1
+  time: 20
+  tags:
+    - retrieval
+
+# MSCOCO
+retrieval/mscoco_2014_5k_test_image_text_retrieval:
+  name: MSCOCO
+  size: 5000
+  main_metric: mean_recall@1
+  time: 23
+  tags:
+    - retrieval
+
+# WinoGAViL
+misc/winogavil:
+  name: WinoGAViL
+  size: 3563
+  main_metric: jaccard_score_10-12
+  time: 1096
+  random_score: 0.205000
+  tags:
+    - retrieval
+
+# WILDS datasets
+
+# iWildCam
+wilds/iwildcam:
+  name: iWildCam
+  size: 42791
+  main_metric: F1-macro_all
+  time: 251
+  num_classes: 182
+  random_score: 0.143056
+  tags:
+    - wilds
+
+# Camelyon17
+wilds/camelyon17:
+  name: Camelyon17
+  size: 85054
+  time: 212
+  num_classes: 2
+  random_score: 0.500000
+  tags:
+    - wilds
+
+# FMoW
+wilds/fmow:
+  name: FMoW
+  size: 22108
+  main_metric: acc_worst_region
+  time: 88
+  num_classes: 62
+  random_score: 0.027193
+  tags:
+    - wilds
+
+# Fairness datasets
+
+# Dollar Street
+fairness/dollar_street:
+  name: Dollar Street
+  size: 3503
+  main_metric: acc_top5_wg
+  time: 404
+  num_classes: 58
+  tags:
+    - fairness
+
+# GeoDE
+fairness/geode:
+  name: GeoDE
+  size: 12488
+  main_metric: acc_wg
+  time: 354
+  num_classes: 40
+  tags:
+    - fairness
+
+# FairFace
+fairness/fairface:
+  name: FairFace
+  size: 10954
+  time: 16
+  tags:
+    - fairness
+
+# UTKFace
+fairness/utkface:
+  name: UTKFace
+  size: 23703
+  time: 32
+  tags:
+    - fairness
+
+...

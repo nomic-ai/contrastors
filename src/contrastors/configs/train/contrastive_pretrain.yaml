@@ -31,13 +31,14 @@ model_args:
   model_type: "encoder"
   seq_len: 2048
   pooling: "mean"
-  encoder: true
+  nomic_encoder: true
   add_prefix: true
   tokenizer_name: "bert-base-uncased"
-  model_name: "nomic-ai/nomic-bert-500k-rotary-base"
+  model_name: "nomic-ai/nomic-bert-2048"
+  pretrained: true
   gradient_checkpointing: false
 
-contrastive_data_args:
+data_args:
   input_shards: "configs/data/contrastive_pretrain.yaml"
   workers: 0 
   batch_size: 16384
