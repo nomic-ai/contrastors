@@ -45,7 +45,7 @@ The dataset should be in the following jsonl format
 To filter an existing dataset, run
 
 ```bash
-torchrun --nproc-per-node=<num_gpus> --dataset=<path_to_dataset_files_or_directory> --output_dir=<path_where_to_save_filtered_dataset> --query_key=<query_key_of_jsonl_file> --document_key=<document_of_key_jsonl_file>
+torchrun --nproc-per-node=<num_gpus> --dataset=<path_to_dataset_files_or_directory> --output_dir=<path_where_to_save_filtered_dataset> --query_key=<query_key_of_jsonl_file> --document_key=<document_of_key_jsonl_file> index_filtering.py
 ```
 
 NOTE: You most likely we want to install `faiss-gpu`. To do so on a GPU with Cuda 12+, please follow [INSTALL_FAISS.md](INSTALL_FAISS.md).

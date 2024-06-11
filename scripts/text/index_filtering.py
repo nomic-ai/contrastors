@@ -14,7 +14,7 @@ import torch.nn.functional as F
 from tqdm import tqdm
 from transformers import AutoModel, AutoTokenizer
 
-from contrastors.models.encoder import BertConfig, BertModel, bert_config_to_gpt2_config
+from contrastors.models.encoder import BertConfig, NomicBertModel, bert_config_to_nomic_config
 
 
 def parse_args():
@@ -299,9 +299,9 @@ if __name__ == "__main__":
 
     model_name = "thenlper/gte-base"
     hf_config = BertConfig.from_pretrained(model_name)
-    config = bert_config_to_gpt2_config(hf_config)
+    config = bert_config_to_nomic_config(hf_config)
     model = (
-        BertModel.from_pretrained(model_name, config=config, add_pooling_layer=False)
+        NomicBertModel.from_pretrained(model_name, config=config, add_pooling_layer=False)
         .to(f"cuda:{dist.get_rank()}")
         .to(dtype=torch.float16)
     )
