@@ -402,7 +402,7 @@ class BaseTrainer(metaclass=ABCMeta):
 
         self.print(f"Starting training from epoch {start_epoch}")
         for epoch in range(start_epoch, train_args.num_epochs):
-            if epoch > 0:
+            if epoch > 0 and getattr(data_config, "streaming", False) is False:
                 # webdataset needs special handling for multi-epoch
                 if "train_sampler" in dataloaders:
                     sampler = dataloaders["train_sampler"]
