@@ -136,7 +136,7 @@ rsa==4.9
 s3fs==2024.3.1
 s3transfer==0.10.1
 safetensors==0.4.3
-scikit-learn==1.4.2
+scikit-learn==1.5.0
 scipy==1.13.0
 seaborn==0.13.2
 sentence-transformers==2.7.0
