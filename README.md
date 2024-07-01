@@ -20,6 +20,7 @@
 ## Research
 
 * [Nomic Embed: Training a Reproducible Long Context Text Embedder](https://arxiv.org/abs/2402.01613) by Zach Nussbaum, Jack Morris, Andriy Mulyar, and Brandon Duderstadt
+* [Nomic Embed Vision: Expanding the Latent Space](https://arxiv.org/abs/2406.18587) by Zach Nussbaum, Brandon Duderstadt, and Andriy Mulyar
 
 ## Getting Started and Requirements
 
@@ -143,6 +144,13 @@ This will train a bert model on all ~200M examples. To change the dataset, you c
 
 To finetune `nomic-bert-embed-v1-unsupervised`, update the config to `configs/train/contrastive_finetune.yaml`.
 
+### Generating Your Own Data
+
+To generate your own data for any step of the pipeline, you can use the provided scripts in `scripts/text`. 
+
+See the [README](scripts/text/README.md) in `scripts/text` for more information.
+
+
 
 ## Training `nomic-embed-vision-v1.5`
 
@@ -154,18 +162,14 @@ To align `nomic-embed-vision-v1.5` with `nomic-embed-text-v1.5`, you can run the
 deepspeed  train.py --deepspeed_config=configs/deepspeed/image_text.json --config=configs/train/nomic_embed_vision_v1.5.yaml --dtype=bf16
 ```
 
-### Generating Your Own Data
-
-To generate your own data for any step of the pipeline, you can use the provided scripts in `scripts/text`. 
-
-See the [README](scripts/text/README.md) in `scripts/text` for more information.
-
 ## Pretrained Models
 
-We provide pretrained models for `nomic-embed-text-v1` at the following locations:
+We provide pretrained models for `Nomic Embed` at the following locations:
 
 - [nomic-embed-text-v1](https://huggingface.co/nomic-ai/nomic-embed-text-v1)
+- [nomic-embed-vision-v1](https://huggingface.co/nomic-ai/nomic-embed-vision-v1)
 - [nomic-embed-text-v1.5](https://huggingface.co/nomic-ai/nomic-embed-text-v1.5)
+- [nomic-embed-vision-v1.5](https://huggingface.co/nomic-ai/nomic-embed-vision-v1.5)
 - [nomic-embed-text-v1-ablated](https://huggingface.co/nomic-ai/nomic-embed-text-v1-ablated)
 - [nomic-embed-text-v1-unsupervised](https://huggingface.co/nomic-ai/nomic-embed-text-v1-unsupervised)
 - [nomic-bert-2048](https://huggingface.co/nomic-ai/nomic-bert-2048)
@@ -178,7 +182,7 @@ We provide pretrained models for `nomic-embed-text-v1` at the following location
 
 ## License
 
-This project and models are licensed under the [Apache 2.0 License](LICENSE).
+This code is licensed under the [Apache 2.0 License](LICENSE). See the model cards for the individual license for each model. 
 
 ## Acknowledgements
 
@@ -198,5 +202,14 @@ If you find the model, dataset, or training code useful, please cite our work
       eprint={2402.01613},
       archivePrefix={arXiv},
       primaryClass={cs.CL}
+}
+@misc{nussbaum2024nomicembedvisionexpanding,
+      title={Nomic Embed Vision: Expanding the Latent Space}, 
+      author={Zach Nussbaum and Brandon Duderstadt and Andriy Mulyar},
+      year={2024},
+      eprint={2406.18587},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2406.18587}, 
 }
 ```
