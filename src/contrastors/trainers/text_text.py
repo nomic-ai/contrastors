@@ -190,12 +190,6 @@ class TextTextTrainer(BaseTrainer):
             attention_mask=batch["document_attention_mask"].to(model.device),
             normalize=normalize,
         )
-        if "negative_input_ids" in batch:
-            negative_outputs = model(
-                input_ids=batch["negative_input_ids"].to(model.device),
-                attention_mask=batch["negative_attention_mask"].to(model.device),
-                normalize=normalize,
-            )
 
         queries = query_outputs["embedding"]
         all_documents = gather_with_grad(document_outputs["embedding"])
