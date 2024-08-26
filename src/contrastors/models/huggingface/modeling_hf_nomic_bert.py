@@ -33,6 +33,11 @@ from transformers.utils.hub import cached_file, get_checkpoint_shard_files
 
 from .configuration_hf_nomic_bert import NomicBertConfig
 
+try:
+    from torch.nn.functional import scaled_dot_product_attention
+except ImportError:
+    scaled_dot_product_attention = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -386,6 +391,7 @@ class NomicBertPreTrainedModel(PreTrainedModel):
         num_labels = kwargs.pop("num_labels", None)
         rotary_scaling_factor = kwargs.pop("rotary_scaling_factor", None)
         strict = kwargs.pop("strict", True)
+        dtype = kwargs.pop("torch_dtype", None)
         if rotary_scaling_factor:
             config.rotary_scaling_factor = rotary_scaling_factor
 
@@ -401,6 +407,9 @@ class NomicBertPreTrainedModel(PreTrainedModel):
                 model = cls(config, *inputs, add_pooling_layer=False)
             else:
                 model = cls(config, *inputs)
+
+        if dtype is not None:
+            model = model.to(dtype=dtype)
         # TODO: fix this
         # Assuming we know what we're doing when loading from disk
         # Prob a bad assumption but i'm tired and want to train this asap
@@ -419,7 +428,7 @@ class NomicBertPreTrainedModel(PreTrainedModel):
             load_return = model.load_state_dict(state_dict, strict=False)
         else:
             # TODO: can probably check config class and see if we need to remap from a bert model
-            state_dict = state_dict_from_pretrained(model_name)
+            state_dict = state_dict_from_pretrained(model_name, dtype=dtype)
             state_dict = remap_bert_state_dict(
                 state_dict,
                 config,
@@ -1384,15 +1393,20 @@ class NomicBertAttention(nn.Module):
         query = query.permute(0, 2, 1, 3)
         key = key.permute(0, 2, 1, 3)
         value = value.permute(0, 2, 1, 3)
+        if scaled_dot_product_attention is not None:
+            attn_output = F.scaled_dot_product_attention(
+                query, key, value, attn_mask=attention_mask, dropout_p=self.drop.p, is_causal=False
+            )
+        else:
+            attention_scores = torch.matmul(query, key.transpose(-1, -2)) / self.norm_factor
+            if attention_mask is not None:
+                attention_scores = attention_scores + attention_mask
 
-        attention_scores = torch.matmul(query, key.transpose(-1, -2)) / self.norm_factor
-        if attention_mask is not None:
-            attention_scores = attention_scores + attention_mask
+            attentions_probs = F.softmax(attention_scores, dim=-1)
+            attentions_probs = self.drop(attentions_probs)
 
-        attentions_probs = F.softmax(attention_scores, dim=-1)
-        attentions_probs = self.drop(attentions_probs)
+            attn_output = torch.matmul(attentions_probs, value)
 
-        attn_output = torch.matmul(attentions_probs, value)
         attn_output = rearrange(attn_output.permute(0, 2, 1, 3), "... h d -> ... (h d)")
 
         attn_output = self.out_proj(attn_output)

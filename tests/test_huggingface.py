@@ -50,10 +50,13 @@ def test_nomic_bert_hf(model_name):
     sequence_output_ref, _ = out_hf.last_hidden_state, out_hf.pooler_output
     sequence_output_ref[~attention_mask, :] = 0.0
 
-    print(f"Output max diff: {(sequence_output - sequence_output_ref).abs().max().item()}")
-    print(f"Output mean diff: {(sequence_output - sequence_output_ref).abs().mean().item()}")
-    print(f"HF bf16 max diff: {(sequence_output_hf - sequence_output_ref).abs().max().item()}")
-    print(f"HF bf16 mean diff: {(sequence_output_hf - sequence_output_ref).abs().mean().item()}")
+    print(f"Max diff between contrastors and hf ref: {(sequence_output - sequence_output_ref).abs().max().item()}")
+    print(f"Mean diff between contrastors and hf ref: {(sequence_output - sequence_output_ref).abs().mean().item()}")
+    print(f"Max diff between hf and hf bf16: {(sequence_output_hf - sequence_output_ref).abs().max().item()}")
+    print(f"Mean diff between hf and hf bf16: {(sequence_output_hf - sequence_output_ref).abs().mean().item()}")
     assert (sequence_output - sequence_output_ref).abs().max().item() < 3 * (
         sequence_output_hf - sequence_output_ref
     ).abs().max().item()
+    assert (sequence_output - sequence_output_ref).abs().mean().item() < 3 * (
+        sequence_output_hf - sequence_output_ref
+    ).abs().mean().item()   
