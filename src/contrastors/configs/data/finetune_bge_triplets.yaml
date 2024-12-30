@@ -1,0 +1,79 @@
+datasets:
+  - name: "msmarco"
+    bucket: "s3://bge-m3-bge-m3-filtered/msmarco/shard-{00000..00004}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective: 
+      type: "triplet"
+      columns: ["query", "pos", "neg"]
+
+  - name: "nq_triples"
+    bucket: "s3://bge-m3-bge-m3-filtered/nq/shard-{00000..00004}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective: 
+      type: "triplet"
+      columns: ["query", "pos", "neg"]
+
+  - name: "nli_triplets"
+    bucket: "s3://contrastive/nli_simcse_50negs_fixed/shard-{00000..00002}.jsonl.gz"
+    query_prefix: "classification"
+    objective: 
+      type: "triplet"
+      columns: ["query", "document", "negatives"]
+
+  - name: "reddit"
+    bucket: "s3://contrastive/reddit_triples/shard-{00000..00001}.jsonl.gz"
+    query_only: true
+    query_prefix: "clustering"
+    objective: 
+      type: "triplet"
+      columns: ["query", "document", "negatives"]
+
+  - name: "medi_wiki"
+    bucket: "s3://contrastive/medi_sts_wiki_rephrasal/shard-00000.jsonl.gz"
+    query_only: true
+    query_prefix: "classification"
+    objective: 
+      type: "triplet"
+      columns: ["query", "pos", "neg"]
+
+  - name: "medi_stackexchange"
+    bucket: "s3://contrastive/medi_sts_stackexchange_dupe/shard-00000.jsonl.gz"
+    query_only: true
+    query_prefix: "classification"
+    objective: 
+      type: "triplet"
+      columns: ["query", "pos", "neg"]
+
+  - name: "medi_flickr"
+    bucket: "s3://contrastive/medi_sts_flickr_sampled/shard-00000.jsonl.gz"
+    query_only: true
+    query_prefix: "classification"
+    objective: 
+      type: "triplet"
+      columns: ["query", "pos", "neg"]
+
+  - name: "medi_supernli"
+    bucket: "s3://contrastive/medi_supernli_sampled/shard-00000.jsonl.gz"
+    query_only: true
+    query_prefix: "classification"
+    objective: 
+      type: "triplet"
+      columns: ["query", "pos", "neg"]
+
+  - name: "hotpot"
+    bucket: "s3://bge-m3-bge-m3-filtered/hotpotqa/shard-{00000..00004}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective: 
+      type: "triplet"
+      columns: ["query", "pos", "neg"]
+
+  - name: "fever"
+    bucket: "s3://bge-m3-bge-m3-filtered/fever/shard-{00000..00004}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective: 
+      type: "triplet"
+      columns: ["query", "pos", "neg"]

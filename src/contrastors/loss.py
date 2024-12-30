@@ -73,11 +73,12 @@ def get_chunked_embeddings(model, chunks):
     embeddings = []
     rand_states = []
 
-    with torch.no_grad():
-        for chunk in chunks:
-            rand_states.append(RandContext(chunk))
-            emb = model(**chunk)
-            embeddings.append(emb["embedding"])
+    with torch.autocast("cuda", dtype=torch.bfloat16):
+        with torch.no_grad():
+            for chunk in chunks:
+                rand_states.append(RandContext(chunk))
+                emb = model(**chunk)
+                embeddings.append(emb["embedding"])
 
     return torch.concat(embeddings, dim=0), rand_states
 
@@ -89,7 +90,8 @@ def accumulate_gradients(model, inputs, cache, rand_states):
     for inp, grad, state, sync_context in zip(inputs, cache, rand_states, sync_contexts):
         with sync_context():
             with state:
-                embedding = model(**inp)["embedding"]
+                with torch.autocast("cuda", dtype=torch.bfloat16):
+                    embedding = model(**inp)["embedding"]
             surrogate = torch.dot(embedding.flatten(), grad.flatten())
             surrogate.backward()
 
@@ -100,13 +102,16 @@ def cache_loss(tower1, tower2, query_embeddings, document_embeddings, logit_scal
     document_embs = document_embeddings.detach().requires_grad_()
 
     # I'm not sure this works for LiT
-    no_tower1_sync = getattr(tower1, "no_sync", nullcontext)
-    no_tower2_sync = getattr(tower2, "no_sync", nullcontext)
+    # TODO: this broke everything with grad cache!
+    # no_tower1_sync = getattr(tower1, "no_sync", nullcontext)
+    # no_tower2_sync = getattr(tower2, "no_sync", nullcontext)
+    no_tower1_sync, no_tower2_sync = nullcontext, nullcontext
 
-    with no_tower1_sync():
-        with no_tower2_sync():
-            loss = clip_loss(query_embs, document_embs, logit_scale, gather_enabled=True, bidirectional=bidirectional)
-            loss.backward()
+    with torch.autocast("cuda", dtype=torch.bfloat16):
+        with no_tower1_sync():
+            with no_tower2_sync():
+                loss = clip_loss(query_embs, document_embs, logit_scale, gather_enabled=True, bidirectional=bidirectional)
+                loss.backward()
 
     query_cache = query_embs.grad
     document_cache = document_embs.grad

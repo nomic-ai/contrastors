@@ -55,6 +55,8 @@ class TextTextTrainer(BaseTrainer):
             model = torch.nn.parallel.DistributedDataParallel(
                 model,
                 device_ids=[self.process_index],
+                find_unused_parameters=True,
+                broadcast_buffers=False,
             )
 
         scale = LogitScale(config)
@@ -87,6 +89,7 @@ class TextTextTrainer(BaseTrainer):
                 process_one_shard=data_config.process_one_shard,
                 weighted_sampling=data_config.weighted_sampling,
                 verbose=data_config.verbose,
+                sample_negatives=data_config.sample_negatives,
             )
             if train_args.checkpoint is not None:
                 print(f"Loading dataloader state from {train_args.checkpoint}")

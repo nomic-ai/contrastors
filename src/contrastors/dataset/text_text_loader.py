@@ -47,6 +47,7 @@ class StreamingShardDataset(IterableDataset):
         weighted_sampling=False,
         verbose=False,
         infinite=False,
+        sample_negatives=False,
     ):
         self.num_samples_per_shard = {}
         self.max_per_shard = {}
@@ -69,6 +70,7 @@ class StreamingShardDataset(IterableDataset):
         self.weighted_sampling = weighted_sampling
         self.verbose = verbose
         self.infinite = infinite
+        self.sample_negatives = sample_negatives
 
         if dist.is_initialized():
             self.local_rank = int(os.environ["LOCAL_RANK"])
@@ -334,7 +336,9 @@ class StreamingShardDataset(IterableDataset):
 
         offset = self.path2offsets[normalized_path][str(rank_processed)][0]
         # seek to current offset
-        stream.seek(offset)
+        if stream.tell() != offset:
+            print_rank_zero(f"Seeking to offset {offset}, at {stream.tell()}, {num_processed=}")
+            stream.seek(offset)
 
         objective = self.path2objective[normalized_path]
 
@@ -417,7 +421,13 @@ class StreamingShardDataset(IterableDataset):
         # pop negatives into document and sample N
         for mapped_name, col in zip(MAPPED_NAMES[contrastive_type], columns):
             if mapped_name == "negative":
-                negatives = random.sample(data[col], self.num_negatives)
+                if len(data[col]) <= self.num_negatives:
+                    negatives = data[col]
+                else:
+                    if self.sample_negatives:
+                        negatives = random.sample(data[col], self.num_negatives)
+                    else:
+                        negatives = data[col][: self.num_negatives]
                 paired_data["document"] = [paired_data["document"]] + negatives
             else:
                 paired_data[mapped_name] = data[col]

@@ -351,7 +351,7 @@ class BaseTrainer(metaclass=ABCMeta):
     def training_step(
         self, model, batch, optimizer, scheduler, step, train_args, total_num_steps, gradient_accumulation_steps
     ):
-        with torch.autocast(device_type="cuda", dtype=self.dtype, enabled=not self.deepspeed):
+        with torch.autocast(device_type="cuda", dtype=self.dtype, enabled=(not self.deepspeed and not self.config.train_args.grad_cache)):
             loss = self.forward_step(inputs=batch, **model, step=step)
 
         self.backward(loss)

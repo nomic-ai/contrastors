@@ -120,6 +120,7 @@ class ContrastiveDataArgs(DataArgs):
     weighted_sampling: Optional[bool] = False
     verbose: Optional[bool] = False
     seq_len: Optional[int] = None
+    sample_negatives: Optional[bool] = True
 
 
 class ImageTextDataArgs(DataArgs):
