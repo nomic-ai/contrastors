@@ -211,20 +211,27 @@ class BaseTrainer(metaclass=ABCMeta):
         return optimizer
 
     def get_scheduler(self, config, optimizer, ds_config):
+        total_num_steps = self.total_num_steps * config.num_epochs
+        
         if hasattr(config, "warmup_steps") and getattr(config, "warmup_steps") is not None:
-            total_num_steps = self.total_num_steps * config.num_epochs
             warmup_steps = config.warmup_steps
-
         elif hasattr(config, "warmup_pct") and getattr(config, "warmup_pct") is not None:
-            total_num_steps = self.total_num_steps * config.num_epochs
             warmup_steps = int(total_num_steps * config.warmup_pct)
-
         else:
             warmup_steps = 0
+        
+        if hasattr(config, "cooldown_steps") and getattr(config, "cooldown_steps") is not None:
+            cooldown_steps = config.cooldown_steps
+        elif hasattr(config, "cooldown_pct") and getattr(config, "cooldown_pct") is not None:
+            cooldown_steps = int(total_num_steps * config.cooldown_pct)
+        else:
+            cooldown_steps = 0
+
 
         self.print("*" * 50 + " SCHEDULER " + "*" * 50)
         self.print(f"Using {config.schedule_type} learning rate schedule")
         self.print(f"Warmup steps: {warmup_steps}")
+        self.print(f"Cooldown steps: {cooldown_steps}")
         self.print(f"Total num steps: {total_num_steps}")
 
         if ds_config:
@@ -240,11 +247,20 @@ class BaseTrainer(metaclass=ABCMeta):
                 scheduler["params"]["total_num_steps"] = total_num_steps
                 return None
 
+        if config.schedule_type == "warmup_stable_decay":
+            scheduler_specific_kwargs = {
+                "num_stable_steps": total_num_steps - warmup_steps - cooldown_steps,
+                "num_decay_steps": cooldown_steps
+            }
+        else:
+            scheduler_specific_kwargs = {}
+        
         scheduler = get_scheduler(
             name=config.schedule_type,
             optimizer=optimizer,
             num_warmup_steps=warmup_steps,
             num_training_steps=(total_num_steps if config.schedule_type != "inverse_sqrt" else None),
+            scheduler_specific_kwargs=scheduler_specific_kwargs
         )
 
         return scheduler
