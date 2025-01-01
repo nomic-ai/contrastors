@@ -13,6 +13,7 @@ class TrainArgs(BaseModel):
     warmup_steps: Optional[int] = None
     warmup_pct: Optional[float] = None
     cooldown_steps: Optional[int] = None
+    cooldown_pct: Optional[float] = None
     checkpoint: Optional[str] = None
     wandb: bool
     wandb_project_name: str
