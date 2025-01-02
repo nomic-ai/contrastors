@@ -190,7 +190,11 @@ class NomicBertEncoder(NomicBertPreTrainedModel):
         residual = None
 
         batch, seqlen = hidden_states.shape[:2]
-        hidden_states, indices, cu_seqlens, max_seqlen_in_batch = unpad_input(hidden_states, attention_mask)
+        try:
+            hidden_states, indices, cu_seqlens, max_seqlen_in_batch = unpad_input(hidden_states, attention_mask)
+        except:
+            # probably on a newer flash-attention version, which now outputs the amt of tokens used by the batch, which we don't need so just drop it
+            hidden_states, indices, cu_seqlens, max_seqlen_in_batch, _ = unpad_input(hidden_states, attention_mask)
         for i, layer in enumerate(self.layers):
             if self.gradient_checkpointing and self.training:
 
