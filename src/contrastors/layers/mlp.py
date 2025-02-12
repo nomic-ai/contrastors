@@ -27,7 +27,7 @@ class MLP(nn.Module):
         self.activation = nn.GELU(approximate=approximate) if activation == "gelu" else activation
         self.fc2 = linear_cls(hidden_features, out_features, bias=bias2)
 
-    def forward(self, x):
+    def forward(self, x, attention_mask=None):
         y = self.fc1(x)
         y = self.activation(y)
         y = self.fc2(y)
@@ -65,7 +65,7 @@ class GatedMLP(nn.Module):
         self.fc2 = linear_cls(hidden_features, out_features, bias=bias2)
         self.norm = nn.LayerNorm(hidden_features) if norm_layer else nn.Identity()
 
-    def forward(self, x):
+    def forward(self, x, attention_mask=None):
         y = self.fc11(x)
         gate = self.fc12(x)
         if self.activation == F.sigmoid:  # Special case for GLU

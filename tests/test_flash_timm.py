@@ -70,7 +70,9 @@ def test_vit_w_registers(name, dtype):
 
     # TODO get this working with a < 518 image
     processor = AutoProcessor.from_pretrained(
-        "facebook/dinov2-base", crop_size={"height": 518, "width": 518}, size={"shortest_edge": 518}
+        "facebook/dinov2-base",
+        crop_size={"height": 518, "width": 518},
+        size={"shortest_edge": 518},
     )
 
     torch.manual_seed(0)
@@ -156,10 +158,20 @@ def test_vit_w_rope(name, dtype):
 )
 def test_vit_eva_base_patch16(name, dtype):
     timm_model = timm.create_model(
-        name, pretrained=True, img_size=224, ref_feat_shape=(14, 14), patch_size=16, num_classes=0
+        name,
+        pretrained=True,
+        img_size=224,
+        ref_feat_shape=(14, 14),
+        patch_size=16,
+        num_classes=0,
     ).to(device="cuda", dtype=dtype)
     timm_ref = timm.create_model(
-        name, pretrained=True, img_size=224, ref_feat_shape=(14, 14), patch_size=16, num_classes=0
+        name,
+        pretrained=True,
+        img_size=224,
+        ref_feat_shape=(14, 14),
+        patch_size=16,
+        num_classes=0,
     ).to(device="cuda", dtype=torch.float32)
 
     c_config = timm_name_to_vit_config(name)

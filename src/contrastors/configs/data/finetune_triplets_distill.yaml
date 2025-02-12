@@ -1,0 +1,115 @@
+datasets:
+  # - name: "msmaro"
+  #   bucket: "s3://contrastive/msmarco_distillation_simlm_rescored_reranked_min15/shard-{00000..00004}.jsonl.gz"
+  #   query_prefix: "Represent this sentence for searching relevant passages"
+  #   document_prefix: "passage"
+  #   objective: 
+  #     type: "triplet"
+  #     columns: ["query", "document", "negatives"]
+
+  # - name: "nq_triples"
+  #   bucket: "s3://contrastive/nq_cocondensor_hn_mine_reranked_min15/shard-00000.jsonl.gz"
+  #   query_prefix: "Represent this sentence for searching relevant passages"
+  #   document_prefix: "passage"
+  #   objective: 
+  #     type: "triplet"
+  #     columns: ["query", "document", "negatives"]
+
+  # - name: "nli_triplets"
+  #   bucket: "s3://contrastive/nli_simcse_50negs_fixed/shard-{00000..00002}.jsonl.gz"
+  #   query_prefix: "classification"
+  #   objective: 
+  #     type: "triplet"
+  #     columns: ["query", "document", "negatives"]
+
+  # - name: "reddit"
+  #   bucket: "s3://contrastive/reddit_triples/shard-{00000..00001}.jsonl.gz"
+  #   
+  #   query_prefix: "clustering"
+  #   objective: 
+  #     type: "triplet"
+  #     columns: ["query", "document", "negatives"]
+
+  # - name: "medi_wiki"
+  #   bucket: "s3://contrastive/medi_sts_wiki_rephrasal/shard-00000.jsonl.gz"
+  #   
+  #   query_prefix: "classification"
+  #   objective: 
+  #     type: "triplet"
+  #     columns: ["query", "pos", "neg"]
+
+  # - name: "medi_stackexchange"
+  #   bucket: "s3://contrastive/medi_sts_stackexchange_dupe/shard-00000.jsonl.gz"
+  #   
+  #   query_prefix: "classification"
+  #   objective: 
+  #     type: "triplet"
+  #     columns: ["query", "pos", "neg"]
+
+  # - name: "medi_flickr"
+  #   bucket: "s3://contrastive/medi_sts_flickr_sampled/shard-00000.jsonl.gz"
+  #   
+  #   query_prefix: "classification"
+  #   objective: 
+  #     type: "triplet"
+  #     columns: ["query", "pos", "neg"]
+
+  # - name: "medi_supernli"
+  #   bucket: "s3://contrastive/medi_supernli_sampled/shard-00000.jsonl.gz"
+  #   
+  #   query_prefix: "classification"
+  #   objective: 
+  #     type: "triplet"
+  #     columns: ["query", "pos", "neg"]
+
+  - name: "fever"
+    bucket: "s3://beir-stella/fever_95.0pct/shard-{00000..00004}.jsonl.gz"
+    query_prefix: "Represent this sentence for searching relevant passages"
+    query_only: true
+    objective: 
+      type: "triplet"
+      columns: ["query", "pos", "neg"]
+
+  - name: "hotpot"
+    bucket: "s3://beir-stella/hotpotqa_95.0pct/shard-{00000..00004}.jsonl.gz"
+    query_prefix: "Represent this sentence for searching relevant passages"
+    query_only: true
+    objective: 
+      type: "triplet"
+      columns: ["query", "pos", "neg"]
+
+
+  - name: "msmarco"
+    bucket: "s3://beir-stella/msmarco_95.0pct/shard-{00000..00004}.jsonl.gz"
+    query_prefix: "Represent this sentence for searching relevant passages"
+    query_only: true
+    objective: 
+      type: "triplet"
+      columns: ["query", "pos", "neg"]
+
+  - name: "nq"
+    bucket: "s3://beir-stella/nq_95.0pct/shard-{00000..00004}.jsonl.gz"
+    query_prefix: "Represent this sentence for searching relevant passages"
+    query_only: true
+    # kd_loss: true
+    objective: 
+      type: "triplet"
+      columns: ["query", "pos", "neg"]
+
+  - name: "stack"
+    bucket: "s3://stackexchange-title-body-stella/stackexchange-title-body_95.0pct/shard-{00000..00004}.jsonl.gz"
+    query_prefix: "Represent this sentence for searching relevant passages"
+    query_only: true
+    # kd_loss: true
+    objective: 
+      type: "triplet"
+      columns: ["query", "pos", "neg"]
+
+  - name: "squad"
+    bucket: "s3://squad-stella/squad_95.0pct/shard-{00000..00004}.jsonl.gz"
+    query_prefix: "Represent this sentence for searching relevant passages"
+    query_only: true
+    # kd_loss: true
+    objective: 
+      type: "triplet"
+      columns: ["query", "pos", "neg"]

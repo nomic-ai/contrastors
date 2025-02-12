@@ -1,7 +1,7 @@
 import collections
 import math
 from itertools import repeat
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union, Dict
 
 import numpy as np
 import torch
@@ -556,6 +556,20 @@ class PatchDropout(nn.Module):
 
         return x
 
+def create_position_ids_from_input_ids(input_ids, padding_idx, past_key_values_length=0):
+    """
+    Replace non-padding symbols with their position numbers. Position numbers begin at padding_idx+1. Padding symbols
+    are ignored. This is modified from fairseq's `utils.make_positions`.
+
+    Args:
+        x: torch.Tensor x:
+
+    Returns: torch.Tensor
+    """
+    # The series of casts and type-conversions here are carefully balanced to both work with ONNX export and XLA.
+    mask = input_ids.ne(padding_idx).int()
+    incremental_indices = (torch.cumsum(mask, dim=1).type_as(mask) + past_key_values_length) * mask
+    return incremental_indices.long() + padding_idx
 
 class BertEmbeddings(nn.Module):
     def __init__(self, config):
@@ -567,10 +581,12 @@ class BertEmbeddings(nn.Module):
         self.word_embeddings = nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=config.pad_token_id)
         self.max_position_embeddings = config.max_position_embeddings if config.rotary_emb_fraction <= 0 else 0
         self.type_vocab_size = getattr(config, "type_vocab_size", 0)
+        self.pad_token_id = config.pad_token_id
         if self.max_position_embeddings > 0 and config.rotary_emb_fraction <= 0:
             self.position_embeddings = nn.Embedding(
                 config.max_position_embeddings,
                 config.hidden_size,
+                padding_idx=config.pad_token_id,
             )
         if self.type_vocab_size > 0:
             self.token_type_embeddings = nn.Embedding(config.type_vocab_size, config.hidden_size)
@@ -581,11 +597,14 @@ class BertEmbeddings(nn.Module):
         position_ids: (batch, seqlen)
         token_type_ids: (batch, seqlen)
         """
-        batch_size, seqlen = input_ids.shape
+        _, seqlen = input_ids.shape
         embeddings = self.word_embeddings(input_ids)
         if self.max_position_embeddings > 0:
             if position_ids is None:
-                position_ids = torch.arange(seqlen, dtype=torch.long, device=input_ids.device)
+                if self.pad_token_id > 0:
+                    position_ids = create_position_ids_from_input_ids(input_ids, self.pad_token_id).to(input_ids.device)
+                else:
+                    position_ids = torch.arange(seqlen, dtype=torch.long, device=input_ids.device)
             position_embeddings = self.position_embeddings(position_ids)
             embeddings = embeddings + position_embeddings
         if self.type_vocab_size > 0:
@@ -705,7 +724,7 @@ class VarLengthRotaryEmbedding(RotaryEmbedding):
                 inplace=True,
                 seqlen_offsets=seqlen_offset,
                 cu_seqlens=cu_seqlens,
-                max_seq_len=max_seqlen,
+                max_seqlen=max_seqlen,
             )
             if self.scale is None:
                 kv = apply_rotary_emb_kv_(
@@ -725,6 +744,56 @@ class VarLengthRotaryEmbedding(RotaryEmbedding):
                 )
             return q, kv
 
+
+class LlamaRopeEmbedding(VarLengthRotaryEmbedding):
+    def __init__(
+        self,
+        dim: int,
+        config: Dict,
+        base: float = 10000.0,
+        interleaved: bool = False,
+        scale_base: Optional[float] = None,
+        pos_idx_in_fp32: bool = True,
+        device: Optional[torch.device] = None,
+    ):
+        self.config = config
+        super().__init__(dim=dim, 
+                         base=base, 
+                         interleaved=interleaved, 
+                         scale_base=scale_base, 
+                         pos_idx_in_fp32=pos_idx_in_fp32, 
+                         device=device)
+
+    def _compute_inv_freq(self, device: Optional[torch.device] = None) -> torch.Tensor:
+        inv_freq, _ = self._compute_llama3_parameters(self.config, device)
+        return inv_freq
+
+    def _compute_llama3_parameters(
+        self, config: Dict, device: Optional[torch.device], seq_len: Optional[int] = None
+    ) -> Tuple[torch.Tensor, float]:
+        # Gets the default RoPE parameters
+        inv_freq = 1.0 / (self.base ** (torch.arange(0, self.dim, 2, device=device).float() / self.dim))
+        attention_factor = 1.0
+
+        factor = config['factor']
+        low_freq_factor = config['low_freq_factor']
+        high_freq_factor = config['high_freq_factor']
+        old_context_len = config['original_max_position_embeddings']
+
+        low_freq_wavelen = old_context_len / low_freq_factor
+        high_freq_wavelen = old_context_len / high_freq_factor
+
+        wavelen = 2 * math.pi / inv_freq
+        # wavelen < high_freq_wavelen: do nothing
+        # wavelen > low_freq_wavelen: divide by factor
+        inv_freq_llama = torch.where(wavelen > low_freq_wavelen, inv_freq / factor, inv_freq)
+        # otherwise: interpolate between the two, using a smooth factor
+        smooth_factor = (old_context_len / wavelen - low_freq_factor) / (high_freq_factor - low_freq_factor)
+        smoothed_inv_freq = (1 - smooth_factor) * inv_freq_llama / factor + smooth_factor * inv_freq_llama
+        is_medium_freq = ~(wavelen < high_freq_wavelen) * ~(wavelen > low_freq_wavelen)
+        inv_freq_llama = torch.where(is_medium_freq, smoothed_inv_freq, inv_freq_llama)
+
+        return inv_freq_llama, attention_factor
 
 class DynamicNTKRotaryEmbedding(VarLengthRotaryEmbedding):
     def __init__(self, rotary_scaling_factor, max_position_embeddings, **kwargs):

@@ -28,12 +28,21 @@ def test_openclip_forward(model_name):
     inputs["input_ids"][:, -1] = config.text_config.eos_token_id
     inputs["attention_mask"] = torch.ones_like(inputs["input_ids"]).to("cuda").long()
 
-    inputs = {"vision_inputs": {"input_ids": processed["pixel_values"]}, "text_inputs": inputs}
+    inputs = {
+        "vision_inputs": {"input_ids": processed["pixel_values"]},
+        "text_inputs": inputs,
+    }
 
     flash_outputs = flash_model(**inputs)
-    text_emb, vision_emb = flash_outputs["text_embedding"], flash_outputs["vision_embedding"]
+    text_emb, vision_emb = (
+        flash_outputs["text_embedding"],
+        flash_outputs["vision_embedding"],
+    )
     bf16_outputs = bf16_model(pixel_values=processed["pixel_values"].to(torch.bfloat16), **inputs["text_inputs"])
-    bf16_text_emb, bf16_vision_emb = bf16_outputs["text_embeds"], bf16_outputs["image_embeds"]
+    bf16_text_emb, bf16_vision_emb = (
+        bf16_outputs["text_embeds"],
+        bf16_outputs["image_embeds"],
+    )
 
     del flash_model
     del bf16_model
@@ -41,7 +50,10 @@ def test_openclip_forward(model_name):
     model = AutoModel.from_pretrained(model_name).to("cuda").to(torch.float32)
 
     fp32_outputs = model(pixel_values=processed["pixel_values"].to(torch.float32), **inputs["text_inputs"])
-    fp32_text_emb, fp32_vision_emb = fp32_outputs["text_embeds"], fp32_outputs["image_embeds"]
+    fp32_text_emb, fp32_vision_emb = (
+        fp32_outputs["text_embeds"],
+        fp32_outputs["image_embeds"],
+    )
 
     # main error is due to numerical precision :/
     # https://github.com/Dao-AILab/flash-attention/issues/211

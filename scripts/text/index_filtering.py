@@ -6,14 +6,16 @@ from argparse import ArgumentParser
 from datetime import timedelta
 from pathlib import Path
 
-import faiss
 import numpy as np
 import torch
 import torch.distributed as dist
 import torch.nn.functional as F
 from tqdm import tqdm
-from transformers import AutoModel, AutoTokenizer
+from transformers import AutoModel, AutoConfig, AutoTokenizer
+import concurrent.futures
+from torch.utils.data import DataLoader, IterableDataset
 
+import faiss
 from contrastors.models.encoder import BertConfig, NomicBertModel, bert_config_to_nomic_config
 
 
@@ -28,6 +30,7 @@ def parse_args():
     parser.add_argument("--k", type=int, default=2)
     parser.add_argument("--max_files", type=int, default=100)
     parser.add_argument("--file_start", type=int, default=0)
+    parser.add_argument("is_hf_dataset", action="store_true")
 
     return parser.parse_args()
 
@@ -38,6 +41,9 @@ def send_dict_to_rank0(tensor_dict):
 
     # Separate keys and tensors, ensuring that the keys are sorted to maintain order
     keys = sorted(tensor_dict.keys())
+    with open(f"keys_rank_{rank}.json", "w") as f:
+        json.dump(keys, f)
+            
     tensors = [tensor_dict[k] for k in keys]
     queries = [tensor[0] for tensor in tensors]
     documents = [tensor[1] for tensor in tensors]
@@ -51,7 +57,7 @@ def send_dict_to_rank0(tensor_dict):
         gathered_documents = None
 
     # Gather tensors on rank 0
-    for i, (query, document) in enumerate(zip(queries, documents)):
+    for i, (query, document) in enumerate(tqdm(zip(queries, documents), total=len(queries), disable=rank != 0)):
         # On rank 0, prepare a list to store gathered tensors from all ranks for the current tensor
         if rank == 0:
             gathered_q = [torch.empty_like(query) for _ in range(world_size)]
@@ -68,21 +74,34 @@ def send_dict_to_rank0(tensor_dict):
         dist.gather(query, gather_list=gathered_q, dst=0)
         dist.gather(document, gather_list=gathered_d, dst=0)
 
+    print_rank0("gathered queries and documents")
+
     if rank == 0:
         gathered_keys = [[] for _ in range(world_size)]
+        for this_rank in range(world_size):
+            with open(f"keys_rank_{this_rank}.json", "r") as f:
+                keys = json.load(f)
+            gathered_keys[this_rank] = keys
+
+            # delete the temporary files
+            os.remove(f"keys_rank_{this_rank}.json")
     else:
         gathered_keys = None
 
-    dist.gather_object(keys, object_gather_list=gathered_keys, dst=0)
+    print_rank0("Gathered keys")
 
     if rank == 0:
         # Flatten the lists of keys and tensors
         flat_keys = [item for sublist in gathered_keys for item in sublist]
+        print(f"{len(flat_keys)=}")
         flat_queries = [item for sublist in zip(*gathered_queries) for item in sublist]
+        print(f"{len(flat_queries)=}")
         flat_documents = [item for sublist in zip(*gathered_documents) for item in sublist]
+        print(f"{len(flat_documents)=}")
 
         # Rebuild the dictionary
         rebuilt_dict = {k: (q, d) for k, q, d in zip(flat_keys, flat_queries, flat_documents)}
+        print(f"{len(rebuilt_dict)=}")
         return rebuilt_dict
     else:
         return None
@@ -121,22 +140,68 @@ def load_dataset(path, query_key, document_key, file_start=0, max_files=100):
     return dataset
 
 
-def get_num_lines(dataset):
+def count_lines_in_file(file_info):
+    file, start_pos = file_info
     num_lines = 0
-    total_bytes = os.path.getsize(dataset)
-    progbar = tqdm(total=total_bytes, unit="B", unit_scale=True, disable=dist.get_rank() != 0)
+    filehandler = gzip.open(file, "rt") if str(file).endswith(".gz") else open(file, "r")
+    
+    with filehandler as f:
+        for _ in f:
+            num_lines += 1
+        current_pos = f.buffer.fileobj.tell()
+    
+    return num_lines, current_pos - start_pos
+
+def get_num_lines(dataset):
+    if isinstance(dataset, str):
+        dataset = Path(dataset)
+    
+    # Get total size and setup progress bar
+    total_bytes = 0
     if dataset.is_dir():
         files = sorted(dataset.glob("shard-*.jsonl.gz"))
+        total_bytes = sum(os.path.getsize(f) for f in files)
     else:
         files = [dataset]
-    for file in tqdm(files):
-        filehandler = gzip.open(file, "rt") if file.endswith(".gz") else open(file, "r")
-        with filehandler as f:
-            for _ in f:
-                num_lines += 1
-                progbar.update(f.buffer.fileobj.tell() - progbar.n)
-
-    return num_lines
+        total_bytes = os.path.getsize(dataset)
+    
+    # Get current rank and world size
+    rank = dist.get_rank()
+    world_size = dist.get_world_size()
+    
+    # Distribute files across ranks
+    files_for_this_rank = [f for i, f in enumerate(files) if i % world_size == rank]
+    
+    progbar = tqdm(total=total_bytes // world_size, unit="B", unit_scale=True, 
+                  disable=rank != 0)
+    
+    # Prepare file information for workers for this rank's files
+    file_infos = [(f, 0) for f in files_for_this_rank]
+    
+    # Use process pool for true parallelism
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+        # Submit this rank's files for processing
+        future_to_file = {
+            executor.submit(count_lines_in_file, file_info): file_info 
+            for file_info in file_infos
+        }
+        
+        total_lines = 0
+        # Collect results as they complete
+        for future in concurrent.futures.as_completed(future_to_file):
+            try:
+                num_lines, bytes_processed = future.result()
+                total_lines += num_lines
+                progbar.update(bytes_processed)
+            except Exception as e:
+                print(f'Rank {rank}: Generated an exception: {e}')
+    
+    # Gather results from all ranks
+    all_lines = torch.tensor([total_lines], device=f"cuda:{rank}")
+    dist.all_reduce(all_lines, op=dist.ReduceOp.SUM)
+    
+    progbar.close()
+    return all_lines.item()
 
 
 def dict_collator(records, tokenizer, query_key, document_key, per_device_batch_size):
@@ -170,38 +235,98 @@ def jsonl_collator(path, tokenizer, query_key, document_key, per_device_batch_si
     rank = dist.get_rank()
     batch = {"query": [], "document": [], "id": []}
 
-    filehandler = gzip.open(path, "rt") if path.endswith(".gz") else open(path, "r")
-    with filehandler as f:
-        for i, line in enumerate(f):
-            if i % world_size != rank:
-                continue
+    if path.is_dir():
+        path = sorted(path.glob("shard-*.jsonl.gz"))
+    else:
+        path = [dataset]
 
-            data = json.loads(line)
-            if isinstance(data, list):
-                batch["query"].append(data[0])
-                batch["document"].append(data[1])
-                batch["id"].append(i)
-            else:
-                batch["query"].append(data[query_key])
-                if isinstance(data[document_key], list):
-                    # take first since it's easy to do and we don't have to find before
-                    batch["document"].append(data[document_key][0])
-                else:
-                    batch["document"].append(data[document_key])
+    worker_info = torch.utils.data.get_worker_info()
+    num_workers = worker_info.num_workers if worker_info else 1
+    worker_id = worker_info.id if worker_info else 0
+    total_parallel = num_workers * world_size
+    global_worker_rank = (rank * num_workers) + worker_id
+    print(f"rank: {rank}, worker_id: {worker_id}, global_worker_rank: {global_worker_rank}, total_parallel: {total_parallel}")
+    
+    
+    total_rows = 0  # Keep track of total rows seen by this worker
+    total_yielded = 0  # Keep track of rows actually yielded
+    
+    ids = 0
+    for file in path:
+        filehandler = gzip.open(file, "rt") if str(file).endswith(".gz") else open(file, "r")
+        with filehandler as f:
+            for line in f:
+                # get row for current rank + worker
+                if ids % total_parallel == global_worker_rank:
+                    total_rows += 1
+                    data = json.loads(line)
+                    if isinstance(data, list):
+                        batch["query"].append(f"query: {data[0]}")
+                        batch["document"].append(f"passage: {data[1]}")
+                        batch["id"].append(ids)
+                    else:
+                        batch["query"].append(f"query: {data[query_key]}")
+                        if isinstance(data[document_key], list):
+                            batch["document"].append(f"passage: {data[document_key][0]}")
+                        else:
+                            batch["document"].append(f"passage: {data[document_key]}")
+                        batch["id"].append(ids)
 
-                batch["id"].append(i)
+                    if len(batch["query"]) >= per_device_batch_size:
+                        yield batch
+                        batch = {"query": [], "document": [], "id": []}
 
-            if len(batch["query"]) == per_device_batch_size:
-                tokenized_query = tokenizer(batch["query"], padding=True, truncation=True, return_tensors="pt")
-                tokenized_document = tokenizer(batch["document"], padding=True, truncation=True, return_tensors="pt")
-                yield {"query": tokenized_query, "document": tokenized_document, "id": batch["id"]}
-                batch = {"query": [], "document": [], "id": []}
+                ids += 1
 
-        # if we have a partial batch, yield it
-        if len(batch["query"]) > 0:
-            tokenized_query = tokenizer(batch["query"], padding=True, truncation=True, return_tensors="pt")
-            tokenized_document = tokenizer(batch["document"], padding=True, truncation=True, return_tensors="pt")
-            yield {"query": tokenized_query, "document": tokenized_document, "id": batch["id"]}
+    # if we have a partial batch, yield it
+    # if len(batch["query"]) > 0:
+    #     tokenized_query = tokenizer(batch["query"], padding=True, truncation=True, return_tensors="pt")
+    #     tokenized_document = tokenizer(batch["document"], padding=True, truncation=True, return_tensors="pt")
+    #     yield {"query": tokenized_query, "document": tokenized_document, "id": batch["id"]}
+
+class JSONLDataset(IterableDataset):
+    def __init__(self, path, tokenizer, query_key, document_key, per_device_batch_size):
+        self.path = path
+        self.tokenizer = tokenizer
+        self.query_key = query_key
+        self.document_key = document_key
+        self.per_device_batch_size = per_device_batch_size
+    
+    def __iter__(self):
+        return jsonl_collator(
+            self.path, 
+            self.tokenizer,
+            self.query_key,
+            self.document_key,
+            per_device_batch_size=self.per_device_batch_size,
+        )
+
+        
+def collate_fn(batches):
+    """
+    Collate function to combine batches from multiple workers
+    """
+    
+    # Tokenize the combined batch
+    tokenizer = AutoTokenizer.from_pretrained("intfloat/multilingual-e5-small")
+    tokenized_query = tokenizer(
+        batches["query"], 
+        padding=True, 
+        truncation=True, 
+        return_tensors="pt"
+    )
+    tokenized_document = tokenizer(
+        batches["document"], 
+        padding=True, 
+        truncation=True, 
+        return_tensors="pt"
+    )
+    
+    return {
+        "query": tokenized_query,
+        "document": tokenized_document,
+        "id": batches["id"]
+    }
 
 
 def embed(model, dataloader, batch_size, max_samples):
@@ -277,7 +402,8 @@ if __name__ == "__main__":
             output_dir.mkdir(parents=True)
 
     dataset = Path(args.dataset)
-    if dataset.is_dir():
+    print_rank0(f"dataset: {dataset}, {dataset.is_dir()=}")
+    if False:
         records = load_dataset(dataset, args.query_key, args.document_key, args.file_start, args.max_files)
         num_lines = len(records)
     else:
@@ -297,8 +423,8 @@ if __name__ == "__main__":
         num_batches_per_device += 1
     print_rank0(f"Num batchers per device: {num_batches_per_device}")
 
-    model_name = "thenlper/gte-base"
-    hf_config = BertConfig.from_pretrained(model_name)
+    model_name = "intfloat/multilingual-e5-small"
+    hf_config = AutoConfig.from_pretrained(model_name, trust_remote_code=True)
     config = bert_config_to_nomic_config(hf_config)
     model = (
         NomicBertModel.from_pretrained(model_name, config=config, add_pooling_layer=False)
@@ -311,10 +437,14 @@ if __name__ == "__main__":
     tokenizer.model_max_length = 512
 
     # initialize once in case we have more than one iteration
-    if dataset.is_dir():
+    if False:
         dataloader = dict_collator(records, tokenizer, args.query_key, args.document_key, args.batch_size)
     else:
-        dataloader = jsonl_collator(dataset, tokenizer, args.query_key, args.document_key, args.batch_size)
+        dataloader = JSONLDataset(
+            dataset, tokenizer, args.query_key, args.document_key, args.batch_size)
+
+        dataloader = DataLoader(dataloader, batch_size=None, num_workers=8, collate_fn=collate_fn, prefetch_factor=4)
+
 
     total_samples = 0
     total_kept = 0
@@ -330,6 +460,7 @@ if __name__ == "__main__":
 
         print(f"rank {dist.get_rank()} embedding {per_device_max_samples} samples")
         embeddings = embed(model, dataloader, args.batch_size, per_device_max_samples)
+        print(f"{type(embeddings)=}")
         print(f"rank {dist.get_rank()} finished embedding {len(embeddings)} samples")
 
         dist.barrier()
@@ -347,6 +478,8 @@ if __name__ == "__main__":
             with open(output_dir / f"ids_to_keep_{current_shard}.json", "w") as f:
                 json.dump(ids_to_keep, f)
 
+            print(f"rank {dist.get_rank()} finished writing {len(ids_to_keep)} samples")
+
         dist.barrier()
 
-    print_rank0(f"Kept {total_kept} out of {total_samples}")
+    print_rank0(f"Kept {total_kept:,} out of {total_samples:,}")

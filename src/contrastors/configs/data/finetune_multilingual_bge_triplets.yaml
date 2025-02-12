@@ -1,0 +1,176 @@
+datasets:
+  - name: "miracl_ar"
+    bucket: "s3://bge-m3-bge-m3-filtered/miracl/ar/shard-{00000..00004}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective: 
+      type: "triplet"
+      columns: ["query", "pos", "neg"]
+
+  - name: "miracl_bn"
+    bucket: "s3://bge-m3-bge-m3-filtered/miracl/bn/shard-{00000..00004}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective: 
+      type: "triplet"
+      columns: ["query", "pos", "neg"]
+
+  - name: "miracl_en"
+    bucket: "s3://bge-m3-bge-m3-filtered/miracl/en/shard-{00000..00004}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective: 
+      type: "triplet"
+      columns: ["query", "pos", "neg"]
+
+  - name: "miracl_es"
+    bucket: "s3://bge-m3-bge-m3-filtered/miracl/es/shard-{00000..00004}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective: 
+      type: "triplet"
+      columns: ["query", "pos", "neg"]
+
+  - name: "miracl_fa"
+    bucket: "s3://bge-m3-bge-m3-filtered/miracl/fa/shard-{00000..00004}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective: 
+      type: "triplet"
+      columns: ["query", "pos", "neg"]
+
+  - name: "miracl_fi"
+    bucket: "s3://bge-m3-bge-m3-filtered/miracl/fi/shard-{00000..00004}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective: 
+      type: "triplet"
+      columns: ["query", "pos", "neg"]
+
+  - name: "miracl_fr"
+    bucket: "s3://bge-m3-bge-m3-filtered/miracl/fr/shard-{00000..00004}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective: 
+      type: "triplet"
+      columns: ["query", "pos", "neg"]
+
+  - name: "miracl_hi"
+    bucket: "s3://bge-m3-bge-m3-filtered/miracl/hi/shard-{00000..00004}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective: 
+      type: "triplet"
+      columns: ["query", "pos", "neg"]
+
+  - name: "miracl_id"
+    bucket: "s3://bge-m3-bge-m3-filtered/miracl/id/shard-{00000..00004}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective: 
+      type: "triplet"
+      columns: ["query", "pos", "neg"]
+
+  - name: "miracl_ja"
+    bucket: "s3://bge-m3-bge-m3-filtered/miracl/ja/shard-{00000..00004}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective: 
+      type: "triplet"
+      columns: ["query", "pos", "neg"]
+      
+  - name: "miracl_ko"
+    bucket: "s3://bge-m3-bge-m3-filtered/miracl/ko/shard-{00000..00004}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective: 
+      type: "triplet"
+      columns: ["query", "pos", "neg"]
+
+  - name: "miracl_ru"
+    bucket: "s3://bge-m3-bge-m3-filtered/miracl/ru/shard-{00000..00004}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective: 
+      type: "triplet"
+      columns: ["query", "pos", "neg"]
+
+  - name: "miracl_sw"
+    bucket: "s3://bge-m3-bge-m3-filtered/miracl/sw/shard-{00000..00004}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective: 
+      type: "triplet"
+      columns: ["query", "pos", "neg"]
+
+  - name: "miracl_te"
+    bucket: "s3://bge-m3-bge-m3-filtered/miracl/te/shard-{00000..00004}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective: 
+      type: "triplet"
+      columns: ["query", "pos", "neg"]
+
+  - name: "miracl_th"
+    bucket: "s3://bge-m3-bge-m3-filtered/miracl/th/shard-{00000..00004}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective: 
+      type: "triplet"
+      columns: ["query", "pos", "neg"]
+
+  - name: "miracl_zh"
+    bucket: "s3://bge-m3-bge-m3-filtered/miracl/zh/shard-{00000..00004}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective: 
+      type: "triplet"
+      columns: ["query", "pos", "neg"]
+
+  - name: "fever"
+    bucket: "s3://bge-m3-bge-m3-filtered/fever/shard-{00000..00004}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective: 
+      type: "triplet"
+      columns: ["query", "pos", "neg"]
+
+  - name: "hotpot"
+    bucket: "s3://bge-m3-bge-m3-filtered/hotpotqa/shard-{00000..00004}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective: 
+      type: "triplet"
+      columns: ["query", "pos", "neg"]
+
+  - name: "msmarco"
+    bucket: "s3://bge-m3-bge-m3-filtered/msmarco/shard-{00000..00004}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective: 
+      type: "triplet"
+      columns: ["query", "pos", "neg"]
+
+  - name: "nq"
+    bucket: "s3://bge-m3-bge-m3-filtered/nq/shard-{00000..00004}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective: 
+      type: "triplet"
+      columns: ["query", "pos", "neg"]
+
+  - name: "stack"
+    bucket: "s3://stackexchange-title-body-stella/stackexchange-title-body_95.0pct/shard-{00000..00004}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective: 
+      type: "triplet"
+      columns: ["query", "pos", "neg"]
+
+  - name: "squad"
+    bucket: "s3://squad-stella/squad_95.0pct/shard-{00000..00004}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective: 
+      type: "triplet"
+      columns: ["query", "pos", "neg"]

@@ -1,0 +1,2767 @@
+datasets:
+- name: reddit_title_body
+  bucket: s3://contrastive-index-filtered/reddit_full/shard-{00000..00666}.jsonl.gz
+  
+  query_prefix: clustering
+  document_prefix: clustering
+  objective:
+    type: paired
+    columns:
+    - title
+    - body
+- name: amazon_reviews
+  bucket: s3://contrastive-index-filtered/amazon_reviews_full/shard-{00000..00393}.jsonl.gz
+  
+  query_prefix: classification
+  document_prefix: classification
+  objective:
+    type: paired
+    columns:
+    - query
+    - document
+- name: paq
+  bucket: s3://contrastive-index-filtered/paq_full/shard-{00000..00538}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - query
+    - document
+- name: s2orc_citation_titles
+  bucket: s3://contrastive-index-filtered/s2orc_citation_title_full/shard-{00000..00077}.jsonl.gz
+  
+  query_prefix: clustering
+  document_prefix: clustering
+  objective:
+    type: paired
+    columns:
+    - query
+    - pos
+- name: s2orc_title_abstract
+  bucket: s3://contrastive-index-filtered/s2orc_title_abstract_full/shard-{00000..00360}.jsonl.gz
+  
+  query_prefix: clustering
+  document_prefix: clustering
+  objective:
+    type: paired
+    columns:
+    - query
+    - document
+- name: s2orc_abstract_citation
+  bucket: s3://contrastive-index-filtered/s2orc_abstract_citation_full/shard-{00000..00076}.jsonl.gz
+  
+  query_prefix: clustering
+  document_prefix: clustering
+  objective:
+    type: paired
+    columns:
+    - query
+    - pos
+- name: s2orc_abstract_body
+  bucket: s3://contrastive/s2orc_abstract_body_index_filtered/shard-{00000..00071}.jsonl.gz
+  
+  query_prefix: clustering
+  document_prefix: clustering
+  objective:
+    type: paired
+    columns:
+    - query
+    - document
+- name: wikianswers
+  bucket: s3://contrastive-index-filtered/wikianswers_full/shard-{00000..00100}.jsonl.gz
+  
+  query_prefix: classification
+  document_prefix: classification
+  objective:
+    type: paired
+    columns:
+    - query
+    - document
+- name: wikipedia
+  bucket: s3://contrastive-index-filtered/wiki_title_body_full/shard-{00000..00061}.jsonl.gz
+  
+  query_prefix: classification
+  document_prefix: classification
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: gooaq
+  bucket: s3://contrastive-index-filtered/gooaq_full/shard-{00000..00012}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - query
+    - document
+- name: codesearch
+  bucket: s3://contrastive-index-filtered/codesearch_full/shard-{00000..00008}.jsonl.gz
+  
+  query_prefix: clustering
+  document_prefix: clustering
+  objective:
+    type: paired
+    columns:
+    - query
+    - document
+- name: yahoo_title_answer
+  bucket: s3://contrastive-index-filtered/yahoo_title_answer_full/shard-{00000..00002}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - query
+    - document
+- name: agnews
+  bucket: s3://contrastive-index-filtered/agnews_full/shard-{00000..00004}.jsonl.gz
+  
+  query_prefix: classification
+  document_prefix: classification
+  objective:
+    type: paired
+    columns:
+    - query
+    - document
+- name: amazonqa
+  bucket: s3://contrastive-index-filtered/amazon_qa_full/shard-{00000..00002}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - query
+    - pos
+- name: yahoo_qa
+  bucket: s3://contrastive-index-filtered/yahoo_qa_full/shard-{00000..00001}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - query
+    - document
+- name: yahoo_title_question
+  bucket: s3://contrastive-index-filtered/yahoo_title_question_full/shard-{00000..00002}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - query
+    - document
+- name: ccnews
+  bucket: s3://contrastive-index-filtered/ccnews_full/shard-{00000..00003}.jsonl.gz
+  
+  query_prefix: classification
+  document_prefix: classification
+  objective:
+    type: paired
+    columns:
+    - query
+    - document
+- name: npr
+  bucket: s3://contrastive-index-filtered/npr_full/shard-{00000..00003}.jsonl.gz
+  
+  query_prefix: classification
+  document_prefix: classification
+  objective:
+    type: paired
+    columns:
+    - query
+    - document
+- name: eli5
+  bucket: s3://contrastive-index-filtered/eli5_full/shard-{00000..00001}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - query
+    - document
+- name: cnn
+  bucket: s3://contrastive-index-filtered/cnn_full/shard-{00000..00002}.jsonl.gz
+  
+  query_prefix: classification
+  document_prefix: classification
+  objective:
+    type: paired
+    columns:
+    - query
+    - document
+- name: stackexchange_duplicate_questions
+  bucket: s3://contrastive-index-filtered/stackexchange_question_question_full/shard-00000.jsonl.gz
+  
+  query_prefix: clustering
+  document_prefix: clustering
+  objective:
+    type: paired
+    columns:
+    - query
+    - document
+- name: stackexchange_title_body
+  bucket: s3://contrastive-index-filtered/stackexchange_title_body_full/shard-00000.jsonl.gz
+  
+  query_prefix: clustering
+  document_prefix: clustering
+  objective:
+    type: paired
+    columns:
+    - query
+    - document
+- name: stackexchange_body_body
+  bucket: s3://contrastive-index-filtered/stackexchange_body_body_full/shard-00000.jsonl.gz
+  
+  query_prefix: clustering
+  document_prefix: clustering
+  objective:
+    type: paired
+    columns:
+    - query
+    - document
+- name: sentence_compression
+  bucket: s3://contrastive-index-filtered/sentence_compression_full/shard-{00000..00001}.jsonl.gz
+  
+  query_prefix: classification
+  document_prefix: classification
+  objective:
+    type: paired
+    columns:
+    - query
+    - document
+- name: wikihow
+  bucket: s3://contrastive-index-filtered/wikihow_full/shard-00000.jsonl.gz
+  
+  query_prefix: classification
+  document_prefix: classification
+  objective:
+    type: paired
+    columns:
+    - query
+    - document
+- name: altlex
+  bucket: s3://contrastive-index-filtered/altlex_full/shard-00000.jsonl.gz
+  
+  query_prefix: classification
+  document_prefix: classification
+  objective:
+    type: paired
+    columns:
+    - query
+    - document
+- name: quora
+  bucket: s3://contrastive-index-filtered/quora_full/shard-00000.jsonl.gz
+  
+  query_prefix: classification
+  document_prefix: classification
+  objective:
+    type: paired
+    columns:
+    - query
+    - document
+- name: simplewiki
+  bucket: s3://contrastive-index-filtered/simplewiki_full/shard-00000.jsonl.gz
+  
+  query_prefix: classification
+  document_prefix: classification
+  objective:
+    type: paired
+    columns:
+    - query
+    - document
+- name: squad
+  bucket: s3://contrastive-index-filtered/squad_full/shard-00000.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - query
+    - document
+- name: mc4-filtered_af
+  bucket: s3://mc4-filtered/af/shard-{00000..00021}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_am
+  bucket: s3://mc4-filtered/am/shard-{00000..00001}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_ar
+  bucket: s3://mc4-filtered/ar/shard-{00000..00532}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_az
+  bucket: s3://mc4-filtered/az/shard-{00000..00052}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_be
+  bucket: s3://mc4-filtered/be/shard-{00000..00017}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_bg
+  bucket: s3://mc4-filtered/bg/shard-{00000..00234}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_bg-Latn
+  bucket: s3://mc4-filtered/bg-Latn/shard-{00000..00001}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_bn
+  bucket: s3://mc4-filtered/bn/shard-{00000..00074}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_ca
+  bucket: s3://mc4-filtered/ca/shard-{00000..00144}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_ceb
+  bucket: s3://mc4-filtered/ceb/shard-{00000..00003}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_co
+  bucket: s3://mc4-filtered/co/shard-{00000..00004}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_cs
+  bucket: s3://mc4-filtered/cs/shard-{00000..00601}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_cy
+  bucket: s3://mc4-filtered/cy/shard-{00000..00041}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_da
+  bucket: s3://mc4-filtered/da/shard-{00000..00287}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_de
+  bucket: s3://mc4-filtered/de/shard-{00000..03176}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_el
+  bucket: s3://mc4-filtered/el/shard-{00000..00417}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_el-Latn
+  bucket: s3://mc4-filtered/el-Latn/shard-{00000..00004}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_eo
+  bucket: s3://mc4-filtered/eo/shard-{00000..00005}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_es
+  bucket: s3://mc4-filtered/es/shard-{00000..04160}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_et
+  bucket: s3://mc4-filtered/et/shard-{00000..00069}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_eu
+  bucket: s3://mc4-filtered/eu/shard-{00000..00015}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_fa
+  bucket: s3://mc4-filtered/fa/shard-{00000..00127}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_fi
+  bucket: s3://mc4-filtered/fi/shard-{00000..00268}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_fil
+  bucket: s3://mc4-filtered/fil/shard-{00000..00021}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_fr
+  bucket: s3://mc4-filtered/fr/shard-{00000..03326}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_fy
+  bucket: s3://mc4-filtered/fy/shard-{00000..00011}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_ga
+  bucket: s3://mc4-filtered/ga/shard-{00000..00004}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_gd
+  bucket: s3://mc4-filtered/gd/shard-{00000..00003}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_gl
+  bucket: s3://mc4-filtered/gl/shard-{00000..00045}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_gu
+  bucket: s3://mc4-filtered/gu/shard-{00000..00006}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_ha
+  bucket: s3://mc4-filtered/ha/shard-{00000..00002}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_hi
+  bucket: s3://mc4-filtered/hi/shard-{00000..00185}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_hi-Latn
+  bucket: s3://mc4-filtered/hi-Latn/shard-{00000..00006}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_hmn
+  bucket: s3://mc4-filtered/hmn/shard-{00000..00002}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_ht
+  bucket: s3://mc4-filtered/ht/shard-{00000..00002}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_hu
+  bucket: s3://mc4-filtered/hu/shard-{00000..00368}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_hy
+  bucket: s3://mc4-filtered/hy/shard-{00000..00024}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_id
+  bucket: s3://mc4-filtered/id/shard-{00000..00696}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_ig
+  bucket: s3://mc4-filtered/ig/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_is
+  bucket: s3://mc4-filtered/is/shard-{00000..00020}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_it
+  bucket: s3://mc4-filtered/it/shard-{00000..01864}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_iw
+  bucket: s3://mc4-filtered/iw/shard-{00000..00123}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_ja
+  bucket: s3://mc4-filtered/ja/shard-{00000..00873}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_ja-Latn
+  bucket: s3://mc4-filtered/ja-Latn/shard-{00000..00005}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_jv
+  bucket: s3://mc4-filtered/jv/shard-{00000..00005}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_ka
+  bucket: s3://mc4-filtered/ka/shard-{00000..00022}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_kk
+  bucket: s3://mc4-filtered/kk/shard-{00000..00023}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_km
+  bucket: s3://mc4-filtered/km/shard-{00000..00007}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_kn
+  bucket: s3://mc4-filtered/kn/shard-{00000..00010}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_ko
+  bucket: s3://mc4-filtered/ko/shard-{00000..00156}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_ku
+  bucket: s3://mc4-filtered/ku/shard-{00000..00002}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_ky
+  bucket: s3://mc4-filtered/ky/shard-{00000..00009}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_la
+  bucket: s3://mc4-filtered/la/shard-{00000..00016}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_lb
+  bucket: s3://mc4-filtered/lb/shard-{00000..00027}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_lo
+  bucket: s3://mc4-filtered/lo/shard-{00000..00001}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_lt
+  bucket: s3://mc4-filtered/lt/shard-{00000..00112}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_lv
+  bucket: s3://mc4-filtered/lv/shard-{00000..00064}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_mg
+  bucket: s3://mc4-filtered/mg/shard-{00000..00003}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_mi
+  bucket: s3://mc4-filtered/mi/shard-{00000..00001}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_mk
+  bucket: s3://mc4-filtered/mk/shard-{00000..00020}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_ml
+  bucket: s3://mc4-filtered/ml/shard-{00000..00020}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_mn
+  bucket: s3://mc4-filtered/mn/shard-{00000..00020}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_mr
+  bucket: s3://mc4-filtered/mr/shard-{00000..00077}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_ms
+  bucket: s3://mc4-filtered/ms/shard-{00000..00131}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_mt
+  bucket: s3://mc4-filtered/mt/shard-{00000..00022}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_my
+  bucket: s3://mc4-filtered/my/shard-{00000..00008}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_ne
+  bucket: s3://mc4-filtered/ne/shard-{00000..00029}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_nl
+  bucket: s3://mc4-filtered/nl/shard-{00000..00962}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_no
+  bucket: s3://mc4-filtered/no/shard-{00000..00254}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_ny
+  bucket: s3://mc4-filtered/ny/shard-{00000..00001}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_pa
+  bucket: s3://mc4-filtered/pa/shard-{00000..00003}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_pl
+  bucket: s3://mc4-filtered/pl/shard-{00000..01261}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_ps
+  bucket: s3://mc4-filtered/ps/shard-{00000..00003}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_pt
+  bucket: s3://mc4-filtered/pt/shard-{00000..01692}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_ro
+  bucket: s3://mc4-filtered/ro/shard-{00000..00457}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_ru
+  bucket: s3://mc4-filtered/ru/shard-{00000..00755}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_ru-Latn
+  bucket: s3://mc4-filtered/ru-Latn/shard-{00000..00007}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_sd
+  bucket: s3://mc4-filtered/sd/shard-{00000..00007}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_si
+  bucket: s3://mc4-filtered/si/shard-{00000..00005}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_sk
+  bucket: s3://mc4-filtered/sk/shard-{00000..00177}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_sl
+  bucket: s3://mc4-filtered/sl/shard-{00000..00084}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_sm
+  bucket: s3://mc4-filtered/sm/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_sn
+  bucket: s3://mc4-filtered/sn/shard-{00000..00003}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_so
+  bucket: s3://mc4-filtered/so/shard-{00000..00008}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_sq
+  bucket: s3://mc4-filtered/sq/shard-{00000..00041}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_sr
+  bucket: s3://mc4-filtered/sr/shard-{00000..00033}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_st
+  bucket: s3://mc4-filtered/st/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_su
+  bucket: s3://mc4-filtered/su/shard-{00000..00002}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_sv
+  bucket: s3://mc4-filtered/sv/shard-{00000..00485}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_sw
+  bucket: s3://mc4-filtered/sw/shard-{00000..00009}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_ta
+  bucket: s3://mc4-filtered/ta/shard-{00000..00035}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_te
+  bucket: s3://mc4-filtered/te/shard-{00000..00011}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_tg
+  bucket: s3://mc4-filtered/tg/shard-{00000..00012}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_th
+  bucket: s3://mc4-filtered/th/shard-{00000..00154}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_tr
+  bucket: s3://mc4-filtered/tr/shard-{00000..00875}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_uk
+  bucket: s3://mc4-filtered/uk/shard-{00000..00385}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_ur
+  bucket: s3://mc4-filtered/ur/shard-{00000..00019}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_uz
+  bucket: s3://mc4-filtered/uz/shard-{00000..00007}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_vi
+  bucket: s3://mc4-filtered/vi/shard-{00000..00785}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_xh
+  bucket: s3://mc4-filtered/xh/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_yi
+  bucket: s3://mc4-filtered/yi/shard-{00000..00001}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_yo
+  bucket: s3://mc4-filtered/yo/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_zh
+  bucket: s3://mc4-filtered/zh/shard-{00000..00545}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_zh-Latn
+  bucket: s3://mc4-filtered/zh-Latn/shard-{00000..00003}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: mc4-filtered_zu
+  bucket: s3://mc4-filtered/zu/shard-{00000..00005}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - text
+- name: multilingual-cc-news-filtered_af
+  bucket: s3://multilingual-cc-news-filtered/af/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_als
+  bucket: s3://multilingual-cc-news-filtered/als/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_am
+  bucket: s3://multilingual-cc-news-filtered/am/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_ar
+  bucket: s3://multilingual-cc-news-filtered/ar/shard-{00000..00154}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_arz
+  bucket: s3://multilingual-cc-news-filtered/arz/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_as
+  bucket: s3://multilingual-cc-news-filtered/as/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_ast
+  bucket: s3://multilingual-cc-news-filtered/ast/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_av
+  bucket: s3://multilingual-cc-news-filtered/av/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_az
+  bucket: s3://multilingual-cc-news-filtered/az/shard-{00000..00005}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_azb
+  bucket: s3://multilingual-cc-news-filtered/azb/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_ba
+  bucket: s3://multilingual-cc-news-filtered/ba/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_bar
+  bucket: s3://multilingual-cc-news-filtered/bar/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_bcl
+  bucket: s3://multilingual-cc-news-filtered/bcl/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_be
+  bucket: s3://multilingual-cc-news-filtered/be/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_bg
+  bucket: s3://multilingual-cc-news-filtered/bg/shard-{00000..00029}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_bh
+  bucket: s3://multilingual-cc-news-filtered/bh/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_bn
+  bucket: s3://multilingual-cc-news-filtered/bn/shard-{00000..00007}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_bo
+  bucket: s3://multilingual-cc-news-filtered/bo/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_bpy
+  bucket: s3://multilingual-cc-news-filtered/bpy/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_br
+  bucket: s3://multilingual-cc-news-filtered/br/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_bs
+  bucket: s3://multilingual-cc-news-filtered/bs/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_bxr
+  bucket: s3://multilingual-cc-news-filtered/bxr/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_ca
+  bucket: s3://multilingual-cc-news-filtered/ca/shard-{00000..00008}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_cbk
+  bucket: s3://multilingual-cc-news-filtered/cbk/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_ce
+  bucket: s3://multilingual-cc-news-filtered/ce/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_ceb
+  bucket: s3://multilingual-cc-news-filtered/ceb/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_ckb
+  bucket: s3://multilingual-cc-news-filtered/ckb/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_co
+  bucket: s3://multilingual-cc-news-filtered/co/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_cs
+  bucket: s3://multilingual-cc-news-filtered/cs/shard-{00000..00026}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_cv
+  bucket: s3://multilingual-cc-news-filtered/cv/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_cy
+  bucket: s3://multilingual-cc-news-filtered/cy/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_da
+  bucket: s3://multilingual-cc-news-filtered/da/shard-{00000..00011}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_de
+  bucket: s3://multilingual-cc-news-filtered/de/shard-{00000..00269}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_diq
+  bucket: s3://multilingual-cc-news-filtered/diq/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_dsb
+  bucket: s3://multilingual-cc-news-filtered/dsb/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_dty
+  bucket: s3://multilingual-cc-news-filtered/dty/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_dv
+  bucket: s3://multilingual-cc-news-filtered/dv/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_el
+  bucket: s3://multilingual-cc-news-filtered/el/shard-{00000..00067}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_eml
+  bucket: s3://multilingual-cc-news-filtered/eml/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_eo
+  bucket: s3://multilingual-cc-news-filtered/eo/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_es
+  bucket: s3://multilingual-cc-news-filtered/es/shard-{00000..00500}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_et
+  bucket: s3://multilingual-cc-news-filtered/et/shard-{00000..00010}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_eu
+  bucket: s3://multilingual-cc-news-filtered/eu/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_fa
+  bucket: s3://multilingual-cc-news-filtered/fa/shard-{00000..00034}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_fi
+  bucket: s3://multilingual-cc-news-filtered/fi/shard-{00000..00015}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_fr
+  bucket: s3://multilingual-cc-news-filtered/fr/shard-{00000..00187}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_fy
+  bucket: s3://multilingual-cc-news-filtered/fy/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_ga
+  bucket: s3://multilingual-cc-news-filtered/ga/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_gd
+  bucket: s3://multilingual-cc-news-filtered/gd/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_gl
+  bucket: s3://multilingual-cc-news-filtered/gl/shard-{00000..00001}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_gn
+  bucket: s3://multilingual-cc-news-filtered/gn/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_gom
+  bucket: s3://multilingual-cc-news-filtered/gom/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_gu
+  bucket: s3://multilingual-cc-news-filtered/gu/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_gv
+  bucket: s3://multilingual-cc-news-filtered/gv/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_he
+  bucket: s3://multilingual-cc-news-filtered/he/shard-{00000..00005}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_hi
+  bucket: s3://multilingual-cc-news-filtered/hi/shard-{00000..00108}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_hif
+  bucket: s3://multilingual-cc-news-filtered/hif/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_hr
+  bucket: s3://multilingual-cc-news-filtered/hr/shard-{00000..00014}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_hsb
+  bucket: s3://multilingual-cc-news-filtered/hsb/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_ht
+  bucket: s3://multilingual-cc-news-filtered/ht/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_hu
+  bucket: s3://multilingual-cc-news-filtered/hu/shard-{00000..00024}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_hy
+  bucket: s3://multilingual-cc-news-filtered/hy/shard-{00000..00002}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_ia
+  bucket: s3://multilingual-cc-news-filtered/ia/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_id
+  bucket: s3://multilingual-cc-news-filtered/id/shard-{00000..00044}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_ie
+  bucket: s3://multilingual-cc-news-filtered/ie/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_ilo
+  bucket: s3://multilingual-cc-news-filtered/ilo/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_io
+  bucket: s3://multilingual-cc-news-filtered/io/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_is
+  bucket: s3://multilingual-cc-news-filtered/is/shard-{00000..00001}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_it
+  bucket: s3://multilingual-cc-news-filtered/it/shard-{00000..00255}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_ja
+  bucket: s3://multilingual-cc-news-filtered/ja/shard-{00000..00043}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_jbo
+  bucket: s3://multilingual-cc-news-filtered/jbo/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_jv
+  bucket: s3://multilingual-cc-news-filtered/jv/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_ka
+  bucket: s3://multilingual-cc-news-filtered/ka/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_kk
+  bucket: s3://multilingual-cc-news-filtered/kk/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_km
+  bucket: s3://multilingual-cc-news-filtered/km/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_kn
+  bucket: s3://multilingual-cc-news-filtered/kn/shard-{00000..00002}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_ko
+  bucket: s3://multilingual-cc-news-filtered/ko/shard-{00000..00055}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_krc
+  bucket: s3://multilingual-cc-news-filtered/krc/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_ku
+  bucket: s3://multilingual-cc-news-filtered/ku/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_kv
+  bucket: s3://multilingual-cc-news-filtered/kv/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_kw
+  bucket: s3://multilingual-cc-news-filtered/kw/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_ky
+  bucket: s3://multilingual-cc-news-filtered/ky/shard-{00000..00001}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_la
+  bucket: s3://multilingual-cc-news-filtered/la/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_lb
+  bucket: s3://multilingual-cc-news-filtered/lb/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_lez
+  bucket: s3://multilingual-cc-news-filtered/lez/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_li
+  bucket: s3://multilingual-cc-news-filtered/li/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_lmo
+  bucket: s3://multilingual-cc-news-filtered/lmo/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_lo
+  bucket: s3://multilingual-cc-news-filtered/lo/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_lt
+  bucket: s3://multilingual-cc-news-filtered/lt/shard-{00000..00005}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_lv
+  bucket: s3://multilingual-cc-news-filtered/lv/shard-{00000..00005}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_mai
+  bucket: s3://multilingual-cc-news-filtered/mai/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_mg
+  bucket: s3://multilingual-cc-news-filtered/mg/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_mhr
+  bucket: s3://multilingual-cc-news-filtered/mhr/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_min
+  bucket: s3://multilingual-cc-news-filtered/min/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_mk
+  bucket: s3://multilingual-cc-news-filtered/mk/shard-{00000..00002}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_ml
+  bucket: s3://multilingual-cc-news-filtered/ml/shard-{00000..00005}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_mn
+  bucket: s3://multilingual-cc-news-filtered/mn/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_mr
+  bucket: s3://multilingual-cc-news-filtered/mr/shard-{00000..00003}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_mrj
+  bucket: s3://multilingual-cc-news-filtered/mrj/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_ms
+  bucket: s3://multilingual-cc-news-filtered/ms/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_mt
+  bucket: s3://multilingual-cc-news-filtered/mt/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_mwl
+  bucket: s3://multilingual-cc-news-filtered/mwl/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_my
+  bucket: s3://multilingual-cc-news-filtered/my/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_myv
+  bucket: s3://multilingual-cc-news-filtered/myv/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_mzn
+  bucket: s3://multilingual-cc-news-filtered/mzn/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_nah
+  bucket: s3://multilingual-cc-news-filtered/nah/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_nap
+  bucket: s3://multilingual-cc-news-filtered/nap/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_nds
+  bucket: s3://multilingual-cc-news-filtered/nds/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_ne
+  bucket: s3://multilingual-cc-news-filtered/ne/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_new
+  bucket: s3://multilingual-cc-news-filtered/new/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_nl
+  bucket: s3://multilingual-cc-news-filtered/nl/shard-{00000..00056}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_nn
+  bucket: s3://multilingual-cc-news-filtered/nn/shard-{00000..00001}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_no
+  bucket: s3://multilingual-cc-news-filtered/no/shard-{00000..00017}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_oc
+  bucket: s3://multilingual-cc-news-filtered/oc/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_or
+  bucket: s3://multilingual-cc-news-filtered/or/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_os
+  bucket: s3://multilingual-cc-news-filtered/os/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_pa
+  bucket: s3://multilingual-cc-news-filtered/pa/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_pam
+  bucket: s3://multilingual-cc-news-filtered/pam/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_pfl
+  bucket: s3://multilingual-cc-news-filtered/pfl/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_pl
+  bucket: s3://multilingual-cc-news-filtered/pl/shard-{00000..00035}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_pms
+  bucket: s3://multilingual-cc-news-filtered/pms/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_pnb
+  bucket: s3://multilingual-cc-news-filtered/pnb/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_ps
+  bucket: s3://multilingual-cc-news-filtered/ps/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_pt
+  bucket: s3://multilingual-cc-news-filtered/pt/shard-{00000..00106}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_qu
+  bucket: s3://multilingual-cc-news-filtered/qu/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_rm
+  bucket: s3://multilingual-cc-news-filtered/rm/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_ro
+  bucket: s3://multilingual-cc-news-filtered/ro/shard-{00000..00068}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_ru
+  bucket: s3://multilingual-cc-news-filtered/ru/shard-{00000..00031}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_sa
+  bucket: s3://multilingual-cc-news-filtered/sa/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_sah
+  bucket: s3://multilingual-cc-news-filtered/sah/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_sc
+  bucket: s3://multilingual-cc-news-filtered/sc/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_scn
+  bucket: s3://multilingual-cc-news-filtered/scn/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_sco
+  bucket: s3://multilingual-cc-news-filtered/sco/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_sd
+  bucket: s3://multilingual-cc-news-filtered/sd/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_sh
+  bucket: s3://multilingual-cc-news-filtered/sh/shard-{00000..00002}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_si
+  bucket: s3://multilingual-cc-news-filtered/si/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_sk
+  bucket: s3://multilingual-cc-news-filtered/sk/shard-{00000..00012}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_sl
+  bucket: s3://multilingual-cc-news-filtered/sl/shard-{00000..00008}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_so
+  bucket: s3://multilingual-cc-news-filtered/so/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_sq
+  bucket: s3://multilingual-cc-news-filtered/sq/shard-{00000..00003}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_sr
+  bucket: s3://multilingual-cc-news-filtered/sr/shard-{00000..00010}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_su
+  bucket: s3://multilingual-cc-news-filtered/su/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_sv
+  bucket: s3://multilingual-cc-news-filtered/sv/shard-{00000..00032}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_sw
+  bucket: s3://multilingual-cc-news-filtered/sw/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_ta
+  bucket: s3://multilingual-cc-news-filtered/ta/shard-{00000..00019}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_te
+  bucket: s3://multilingual-cc-news-filtered/te/shard-{00000..00006}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_tg
+  bucket: s3://multilingual-cc-news-filtered/tg/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_th
+  bucket: s3://multilingual-cc-news-filtered/th/shard-{00000..00001}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_tk
+  bucket: s3://multilingual-cc-news-filtered/tk/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_tl
+  bucket: s3://multilingual-cc-news-filtered/tl/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_tr
+  bucket: s3://multilingual-cc-news-filtered/tr/shard-{00000..00182}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_tt
+  bucket: s3://multilingual-cc-news-filtered/tt/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_tyv
+  bucket: s3://multilingual-cc-news-filtered/tyv/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_ug
+  bucket: s3://multilingual-cc-news-filtered/ug/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_uk
+  bucket: s3://multilingual-cc-news-filtered/uk/shard-{00000..00038}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_ur
+  bucket: s3://multilingual-cc-news-filtered/ur/shard-{00000..00017}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_uz
+  bucket: s3://multilingual-cc-news-filtered/uz/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_vec
+  bucket: s3://multilingual-cc-news-filtered/vec/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_vep
+  bucket: s3://multilingual-cc-news-filtered/vep/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_vi
+  bucket: s3://multilingual-cc-news-filtered/vi/shard-{00000..00043}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_vls
+  bucket: s3://multilingual-cc-news-filtered/vls/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_vo
+  bucket: s3://multilingual-cc-news-filtered/vo/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_wa
+  bucket: s3://multilingual-cc-news-filtered/wa/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_war
+  bucket: s3://multilingual-cc-news-filtered/war/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_wuu
+  bucket: s3://multilingual-cc-news-filtered/wuu/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_xal
+  bucket: s3://multilingual-cc-news-filtered/xal/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_xmf
+  bucket: s3://multilingual-cc-news-filtered/xmf/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_yi
+  bucket: s3://multilingual-cc-news-filtered/yi/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_yo
+  bucket: s3://multilingual-cc-news-filtered/yo/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_yue
+  bucket: s3://multilingual-cc-news-filtered/yue/shard-{00000..00000}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext
+- name: multilingual-cc-news-filtered_zh
+  bucket: s3://multilingual-cc-news-filtered/zh/shard-{00000..00061}.jsonl.gz
+  query_prefix: search_query
+  document_prefix: search_document
+  objective:
+    type: paired
+    columns:
+    - title
+    - maintext

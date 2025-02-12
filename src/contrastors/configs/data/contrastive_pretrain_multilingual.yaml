@@ -1,0 +1,341 @@
+datasets:
+  # english data totaling 235M examples
+  - name: "reddit_title_body"
+    bucket: "s3://contrastive-index-filtered/reddit_full/shard-{00000..00666}.jsonl.gz"
+    
+    query_prefix: "clustering"
+    document_prefix: "clustering"
+    objective:
+      type: "paired"
+      columns: ["title", "body"]
+
+  - name: "amazon_reviews"
+    bucket: "s3://contrastive-index-filtered/amazon_reviews_full/shard-{00000..393}.jsonl.gz"
+    
+    query_prefix: "classification"
+    document_prefix: "classification"
+    objective:
+      type: "paired"
+      columns: ["query", "document"]
+
+  - name: "paq"
+    bucket: "s3://contrastive-index-filtered/paq_full/shard-{00000..00538}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective: 
+      type: "paired"
+      columns: ["query", "document"]
+
+  - name: "s2orc_citation_titles"
+    bucket: "s3://contrastive-index-filtered/s2orc_citation_title_full/shard-{00000..00077}.jsonl.gz"
+    
+    query_prefix: "clustering"
+    document_prefix: "clustering"
+    objective:
+      type: "paired"
+      columns: ["query", "pos"]
+
+  - name: "s2orc_title_abstract"
+    bucket: "s3://contrastive-index-filtered/s2orc_title_abstract_full/shard-{00000..00360}.jsonl.gz"
+    
+    query_prefix: "clustering"
+    document_prefix: "clustering"
+    objective:
+      type: "paired"
+      columns: ["query", "document"]
+
+  - name: "s2orc_abstract_citation"
+    bucket: "s3://contrastive-index-filtered/s2orc_abstract_citation_full/shard-{00000..00076}.jsonl.gz"
+    
+    query_prefix: "clustering"
+    document_prefix: "clustering"
+    objective:
+      type: "paired"
+      columns: ["query", "pos"]
+
+  - name: "s2orc_abstract_body"
+    bucket: "s3://contrastive/s2orc_abstract_body_index_filtered/shard-{00000..00071}.jsonl.gz"
+    
+    query_prefix: "clustering"
+    document_prefix: "clustering"
+    objective:
+      type: "paired"
+      columns: ["query", "document"]
+
+  # sets of duplicate questions
+  - name: "wikianswers"
+    bucket: "s3://contrastive-index-filtered/wikianswers_full/shard-{00000..00100}.jsonl.gz"
+    
+    query_prefix: "classification"
+    document_prefix: "classification"
+    objective:
+      type: "paired"
+      columns: ["query", "document"]
+
+  - name: "wikipedia"
+    bucket: "s3://contrastive-index-filtered/wiki_title_body_full/shard-{00000..0061}.jsonl.gz"
+    
+    query_prefix: "classification"
+    document_prefix: "classification"
+    objective:
+      type: "paired"
+      columns: ["title", "text"]
+
+  - name: "gooaq"
+    bucket: "s3://contrastive-index-filtered/gooaq_full/shard-{00000..00012}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective:
+      type: "paired"
+      columns: ["query", "document"]
+
+  - name: "codesearch"
+    bucket: "s3://contrastive-index-filtered/codesearch_full/shard-{00000..00008}.jsonl.gz"
+    
+    query_prefix: "clustering"
+    document_prefix: "clustering"
+    objective:
+      type: "paired"
+      columns: ["query", "document"]
+
+  - name: "yahoo_title_answer"
+    bucket: "s3://contrastive-index-filtered/yahoo_title_answer_full/shard-{00000..00002}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective:
+      type: "paired"
+      columns: ["query", "document"]
+
+  - name: "agnews"
+    bucket: "s3://contrastive-index-filtered/agnews_full/shard-{00000..00004}.jsonl.gz"
+    
+    query_prefix: "classification"
+    document_prefix: "classification"
+    objective:
+      type: "paired"
+      columns: ["query", "document"]
+
+  - name: "amazonqa"
+    bucket: "s3://contrastive-index-filtered/amazon_qa_full/shard-{00000..00002}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective:
+      type: "paired"
+      columns: ["query", "pos"]
+
+  - name: "yahoo_qa"
+    bucket: "s3://contrastive-index-filtered/yahoo_qa_full/shard-{00000..00001}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective:
+      type: "paired"
+      columns: ["query", "document"]
+
+  - name: "yahoo_title_question"
+    bucket: "s3://contrastive-index-filtered/yahoo_title_question_full/shard-{00000..00002}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective:
+      type: "paired"
+      columns: ["query", "document"]
+
+  - name: "ccnews"
+    bucket: "s3://contrastive-index-filtered/ccnews_full/shard-{00000..00003}.jsonl.gz"
+    
+    query_prefix: "classification"
+    document_prefix: "classification"
+    objective:
+      type: "paired"
+      columns: ["query", "document"]
+
+  - name: "npr"
+    bucket: "s3://contrastive-index-filtered/npr_full/shard-{00000..00003}.jsonl.gz"
+    
+    query_prefix: "classification"
+    document_prefix: "classification"
+    objective:
+      type: "paired"
+      columns: ["query", "document"]
+
+  - name: "eli5"
+    bucket: "s3://contrastive-index-filtered/eli5_full/shard-{00000..00001}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective:
+      type: "paired"
+      columns: ["query", "document"]
+
+  - name: "cnn"
+    bucket: "s3://contrastive-index-filtered/cnn_full/shard-{00000..00002}.jsonl.gz"
+    
+    query_prefix: "classification"
+    document_prefix: "classification"
+    objective:
+      type: "paired"
+      columns: ["query", "document"]
+
+  - name: "stackexchange_duplicate_questions"
+    bucket: "s3://contrastive-index-filtered/stackexchange_question_question_full/shard-00000.jsonl.gz"
+    
+    query_prefix: "clustering"
+    document_prefix: "clustering"
+    objective:
+      type: "paired"
+      columns: ["query", "document"]
+
+  - name: "stackexchange_title_body"
+    bucket: "s3://contrastive-index-filtered/stackexchange_title_body_full/shard-00000.jsonl.gz"
+    
+    query_prefix: "clustering"
+    document_prefix: "clustering"
+    objective:
+      type: "paired"
+      columns: ["query", "document"]
+
+  - name: "stackexchange_body_body"
+    bucket: "s3://contrastive-index-filtered/stackexchange_body_body_full/shard-00000.jsonl.gz"
+    
+    query_prefix: "clustering"
+    document_prefix: "clustering"
+    objective:
+      type: "paired"
+      columns: ["query", "document"]
+
+  - name: "sentence_compression"
+    bucket: "s3://contrastive-index-filtered/sentence_compression_full/shard-{00000..00001}.jsonl.gz"
+    
+    query_prefix: "classification"
+    document_prefix: "classification"
+    objective:
+      type: "paired"
+      columns: ["query", "document"]
+
+  - name: "wikihow"
+    bucket: "s3://contrastive-index-filtered/wikihow_full/shard-00000.jsonl.gz"
+    
+    query_prefix: "classification"
+    document_prefix: "classification"
+    objective:
+      type: "paired"
+      columns: ["query", "document"]
+
+  - name: "altlex"
+    bucket: "s3://contrastive-index-filtered/altlex_full/shard-00000.jsonl.gz"
+    
+    query_prefix: "classification"
+    document_prefix: "classification"
+    objective:
+      type: "paired"
+      columns: ["query", "document"]
+
+  - name: "quora"
+    bucket: "s3://contrastive-index-filtered/quora_full/shard-00000.jsonl.gz"
+    
+    query_prefix: "classification"
+    document_prefix: "classification"
+    objective:
+      type: "paired"
+      columns: ["query", "document"]
+
+  - name: "simplewiki"
+    bucket: "s3://contrastive-index-filtered/simplewiki_full/shard-00000.jsonl.gz"
+    
+    query_prefix: "classification"
+    document_prefix: "classification"
+    objective:
+      type: "paired"
+      columns: ["query", "document"]
+
+  - name: "squad"
+    bucket: "s3://contrastive-index-filtered/squad_full/shard-00000.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective:
+      type: "paired"
+      columns: ["query", "document"]
+
+  # chinese data totaling 25M examples
+  - name: "mc4_zh"
+    bucket: "s3://mc4/zh/shard-{00000..00240}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective:
+      type: "paired"
+      columns: ["title", "text"]
+
+  # only ~2M here
+  - name: "multilingual_cc_news_zh"
+    bucket: "s3://multilingual-cc-news/zh/shard-{00000..00061}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective:
+      type: "paired"
+      columns: ["title", "maintext"]
+
+  # arabic data totaling 12M examples
+  - name: "mc4_ar"
+    bucket: "s3://mc4/ar/shard-{00000..00050}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective:
+      type: "paired"
+      columns: ["title", "text"]
+
+  - name: "multilingual_cc_news_ar"
+    bucket: "s3://multilingual-cc-news/ar/shard-{00000..00070}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective:
+      type: "paired"
+      columns: ["title", "maintext"]
+
+  # hindi data totaling 6M examples
+  - name: "mc4_hi"
+    bucket: "s3://mc4/hi/shard-{00000..00025}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective:
+      type: "paired"
+      columns: ["title", "text"]
+
+  - name: "multilingual_cc_news_hi"
+    bucket: "s3://multilingual-cc-news/hi/shard-{00000..00035}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective:
+      type: "paired"
+      columns: ["title", "maintext"]
+
+  # spanish data totaling 3M examples (downsampled)
+  - name: "mc4_es"
+    bucket: "s3://mc4/es/shard-{00000..00010}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective:
+      type: "paired"
+      columns: ["title", "text"]
+
+  - name: "multilingual_cc_news_es"
+    bucket: "s3://multilingual-cc-news/es/shard-{00000..00020}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective:
+      type: "paired"
+      columns: ["title", "maintext"]
+
+  # swahili data totaling ~1M examples (all data that we have)
+  - name: "mc4_sw"
+    bucket: "s3://mc4/sw/shard-{00000..00009}.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective:
+      type: "paired"
+      columns: ["title", "text"]
+
+  - name: "multilingual_cc_news_sw"
+    bucket: "s3://multilingual-cc-news/sw/shard-00000.jsonl.gz"
+    query_prefix: "search_query"
+    document_prefix: "search_document"
+    objective:
+      type: "paired"
+      columns: ["title", "maintext"]

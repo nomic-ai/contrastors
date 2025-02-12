@@ -24,16 +24,16 @@ datasets:
 
   - name: "reddit"
     bucket: "s3://contrastive/reddit_triples/shard-{00000..00001}.jsonl.gz"
-    query_only: true
     query_prefix: "clustering"
+    document_prefix: "clustering"
     objective: 
       type: "triplet"
       columns: ["query", "document", "negatives"]
 
   - name: "medi_wiki"
     bucket: "s3://contrastive/medi_sts_wiki_rephrasal/shard-00000.jsonl.gz"
-    query_only: true
     query_prefix: "classification"
+    document_prefix: "classification"
     objective: 
       type: "triplet"
       columns: ["query", "pos", "neg"]

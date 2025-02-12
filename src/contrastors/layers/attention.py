@@ -13,7 +13,7 @@ from flash_attn import (
 from flash_attn.bert_padding import pad_input, unpad_input
 from flash_attn.ops.fused_dense import FusedDense
 
-from contrastors.layers.embedding import DynamicNTKRotaryEmbedding, VarLengthRotaryEmbedding, apply_rot_embed_cat
+from contrastors.layers.embedding import DynamicNTKRotaryEmbedding, VarLengthRotaryEmbedding, apply_rot_embed_cat, LlamaRopeEmbedding
 
 
 class FlashAttention(nn.Module):
@@ -59,14 +59,24 @@ class FlashAttention(nn.Module):
                     max_position_embeddings=config.max_trained_positions,
                 )
             else:
-                self.rotary_emb = VarLengthRotaryEmbedding(
-                    dim=self.rotary_emb_dim,
-                    base=config.rotary_emb_base,
-                    scale_base=config.rotary_emb_scale_base,
-                    interleaved=config.rotary_emb_interleaved,
-                )
+                if getattr(config, "rope_scaling", None) is None:
+                    self.rotary_emb = VarLengthRotaryEmbedding(
+                        dim=self.rotary_emb_dim,
+                        base=config.rotary_emb_base,
+                        scale_base=config.rotary_emb_scale_base,
+                        interleaved=config.rotary_emb_interleaved,
+                    )
+                else:
+                    # TODO: why is cos and sine half of what it should be? it's 32 instead of 64
+                    self.rotary_emb = LlamaRopeEmbedding(
+                        dim=self.rotary_emb_dim,
+                        base=config.rotary_emb_base,
+                        scale_base=config.rotary_emb_scale_base,
+                        interleaved=config.rotary_emb_interleaved,
+                        config=config.rope_scaling,
+                    )
             # bug in xformers: https://github.com/facebookresearch/xformers/issues/841
-            # uses the head dimension instead of the sequence dimension
+            # uses the head dimension instead of the sequence dimension for open_lm
             self.rotary_head_dim = getattr(config, "rotary_head_dim", False)
 
         linear_cls = nn.Linear if not config.fused_bias_fc else FusedDense
@@ -100,21 +110,29 @@ class FlashAttention(nn.Module):
             past_len = 0
 
         qkv = self.Wqkv(hidden_states)
-        qkv = rearrange(qkv, "... (three h d) -> ... three h d", three=3, d=self.head_dim)
+        if self.num_heads == self.num_heads_kv:
+            qkv = rearrange(qkv, "... (three h d) -> ... three h d", three=3, d=self.head_dim)
+        else:
+            q, kv = qkv.split([self.num_heads * self.head_dim, self.num_heads_kv * self.head_dim * 2], dim=-1)
+            q = rearrange(q, "... (h d) -> ... h d", h=self.num_heads, d=self.head_dim)
+            kv = rearrange(kv, "... (two hkv d) -> ... two hkv d", two=2, hkv=self.num_heads_kv, d=self.head_dim)
 
         past_key_value = (past_key_value, past_len + qkv.size(1)) if use_cache else None
 
         if self.rotary_emb_dim > 0:
-            if cu_seqlens is None and max_seq_len is None:
-                if self.rotary_head_dim:
-                    qkv = rearrange(qkv, "b s three h d -> b h three s d")
-                # TODO 1/3/2024: rotary_embedding for unpadded inputs -> more efficient: https://github.com/Dao-AILab/flash-attention/issues/177
-                qkv = self.rotary_emb(qkv, seqlen_offset=past_len)
+            if self.num_heads == self.num_heads_kv:
+                if cu_seqlens is None and max_seq_len is None:
+                    if self.rotary_head_dim:
+                        qkv = rearrange(qkv, "b s three h d -> b h three s d")
+                    # TODO 1/3/2024: rotary_embedding for unpadded inputs -> more efficient: https://github.com/Dao-AILab/flash-attention/issues/177
+                    qkv = self.rotary_emb(qkv, seqlen_offset=past_len)
 
-                if self.rotary_head_dim:
-                    qkv = rearrange(qkv, "b h three s d -> b s three h d")
+                    if self.rotary_head_dim:
+                        qkv = rearrange(qkv, "b h three s d -> b s three h d")
+                else:
+                    qkv = self.rotary_emb(qkv, cu_seqlens=cu_seqlens, max_seqlen=max_seq_len, seqlen_offset=past_len)
             else:
-                qkv = self.rotary_emb(qkv, cu_seqlens=cu_seqlens, max_seqlen=max_seq_len, seqlen_offset=past_len)
+                q, kv = self.rotary_emb(q, kv, cu_seqlens=cu_seqlens, max_seqlen=max_seq_len, seqlen_offset=past_len)
         elif rope is not None:
             # TODO there's no way this is efficient
             # b, s, 3, h, d -> b h s 3 d
@@ -132,49 +150,95 @@ class FlashAttention(nn.Module):
         if attention_mask is not None:
             # varlen, ignore padding tokens, efficient for large batch with many paddings
             assert attention_mask is not None
-            if cu_seqlens is None and max_seq_len is None:
-                bsz, q_len, h_size = hidden_states.shape
-                unpadded_qkv, indices, cu_seqlens, max_seq_len = unpad_input(qkv, attention_mask)
+            if self.num_heads == self.num_heads_kv:
+                if cu_seqlens is None and max_seq_len is None:
+                    bsz, q_len, h_size = hidden_states.shape
+                    unpadded_qkv, indices, cu_seqlens, max_seq_len = unpad_input(qkv, attention_mask)
 
-                attn_outputs = flash_attn_varlen_qkvpacked_func(
-                    unpadded_qkv,
-                    cu_seqlens,
-                    max_seq_len,
-                    dropout_p=self.drop.p if self.training else 0.0,
-                    softmax_scale=1.0 / self.norm_factor,
-                    causal=self.causal,
-                    return_attn_probs=output_attentions,
-                )
+                    attn_outputs = flash_attn_varlen_qkvpacked_func(
+                        unpadded_qkv,
+                        cu_seqlens,
+                        max_seq_len,
+                        dropout_p=self.drop.p if self.training else 0.0,
+                        softmax_scale=1.0 / self.norm_factor,
+                        causal=self.causal,
+                        return_attn_probs=output_attentions,
+                    )
 
-                attn_output = attn_outputs[0] if output_attentions else attn_outputs
+                    attn_output = attn_outputs[0] if output_attentions else attn_outputs
 
-                attn_output = pad_input(attn_output, indices, bsz, q_len).reshape(bsz, q_len, h_size)
+                    attn_output = pad_input(attn_output, indices, bsz, q_len).reshape(bsz, q_len, h_size)
+                else:
+                    attn_outputs = flash_attn_varlen_qkvpacked_func(
+                        qkv,
+                        cu_seqlens,
+                        max_seq_len,
+                        dropout_p=self.drop.p if self.training else 0.0,
+                        softmax_scale=1.0 / self.norm_factor,
+                        causal=self.causal,
+                        return_attn_probs=output_attentions,
+                    )
+                    attn_output = attn_outputs[0] if output_attentions else attn_outputs
+                    attn_output = rearrange(attn_output, "... h d -> ... (h d)")
             else:
-                attn_outputs = flash_attn_varlen_qkvpacked_func(
-                    qkv,
-                    cu_seqlens,
-                    max_seq_len,
-                    dropout_p=self.drop.p if self.training else 0.0,
-                    softmax_scale=1.0 / self.norm_factor,
-                    causal=self.causal,
-                    return_attn_probs=output_attentions,
-                )
-                attn_output = attn_outputs[0] if output_attentions else attn_outputs
-                attn_output = rearrange(attn_output, "... h d -> ... (h d)")
+                if cu_seqlens is None and max_seq_len is None:
+                    bsz, q_len, h_size = hidden_states.shape
+                    unpadded_q, indices_q, cu_seqlens, max_seq_len = unpad_input(q, attention_mask)
+                    unpadded_kv, _, cu_seqlens_k, max_seq_len_k = unpad_input(kv, attention_mask)
+
+                    attn_outputs = flash_attn_varlen_kvpacked_func(
+                        q=unpadded_q,
+                        kv=unpadded_kv,
+                        cu_seqlens_q=cu_seqlens,
+                        cu_seqlens_k=cu_seqlens_k,
+                        max_seqlen_q=max_seq_len,
+                        max_seqlen_k=max_seq_len_k,
+                        dropout_p=self.drop.p if self.training else 0.0,
+                        softmax_scale=1.0 / self.norm_factor,
+                        causal=self.causal,
+                        return_attn_probs=output_attentions,
+                    )
+
+                    attn_output = attn_outputs[0] if output_attentions else attn_outputs
+                    attn_output = pad_input(attn_output, indices_q, bsz, q_len).reshape(bsz, q_len, h_size)
+                else:
+                    attn_outputs = flash_attn_kvpacked_func(
+                        q=q,
+                        kv=kv,
+                        dropout_p=self.drop.p if self.training else 0.0,
+                        softmax_scale=1.0 / self.norm_factor,
+                        causal=self.causal,
+                        return_attn_probs=output_attentions,
+                    )
+                    attn_output = attn_outputs[0] if output_attentions else attn_outputs
+                    attn_output = rearrange(attn_output, "... h d -> ... (h d)")
 
         else:
-            bsz, q_len, h_size = hidden_states.shape
-            # no padding tokens, more efficient
-            attn_outputs = flash_attn_qkvpacked_func(
-                qkv,
-                dropout_p=self.drop.p if self.training else 0.0,
-                softmax_scale=1.0 / self.norm_factor,
-                causal=self.causal,
-                return_attn_probs=output_attentions,
-            )
+            if self.num_heads == self.num_heads_kv:
+                bsz, q_len, h_size = hidden_states.shape
+                # no padding tokens, more efficient
+                attn_outputs = flash_attn_qkvpacked_func(
+                    qkv,
+                    dropout_p=self.drop.p if self.training else 0.0,
+                    softmax_scale=1.0 / self.norm_factor,
+                    causal=self.causal,
+                    return_attn_probs=output_attentions,
+                )
 
-            attn_output = attn_outputs[0] if output_attentions else attn_outputs
-            attn_output = attn_output.reshape(bsz, q_len, h_size)
+                attn_output = attn_outputs[0] if output_attentions else attn_outputs
+                attn_output = attn_output.reshape(bsz, q_len, h_size)
+            else:
+                attn_outputs = flash_attn_kvpacked_func(
+                        q=q,
+                        kv=kv,
+                        dropout_p=self.drop.p if self.training else 0.0,
+                        softmax_scale=1.0 / self.norm_factor,
+                        causal=self.causal,
+                        return_attn_probs=output_attentions,
+                    )
+                attn_output = attn_outputs[0] if output_attentions else attn_outputs
+                attn_output = rearrange(attn_output, "... h d -> ... (h d)")
+                
 
         attn_output = self.out_proj(attn_output)
 

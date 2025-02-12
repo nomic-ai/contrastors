@@ -75,3 +75,7 @@ class DistributedWandbTracker:
     def log(self, metrics, **kwargs):
         if dist.get_rank() == 0:
             self.tracker.log(metrics, **kwargs)
+
+    def watch(self, model, log="all", log_freq=5000):
+        if dist.get_rank() == 0:
+            self.tracker.watch(model, log=log, log_freq=log_freq)

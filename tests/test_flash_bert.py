@@ -58,10 +58,16 @@ def test_flash_bert(model_name):
     out = model.bert(input_ids, attention_mask=attention_mask)
     sequence_output, pooled_output = out.last_hidden_state, out.pooler_output
     out_hf = model_hf.bert(input_ids, attention_mask=attention_mask)
-    sequence_output_hf, pooled_output_hf = out_hf.last_hidden_state, out_hf.pooler_output
+    sequence_output_hf, pooled_output_hf = (
+        out_hf.last_hidden_state,
+        out_hf.pooler_output,
+    )
     sequence_output_hf[~attention_mask, :] = 0.0
     out_ref = model_ref.bert(input_ids, attention_mask=attention_mask)
-    sequence_output_ref, pooled_output_ref = out_ref.last_hidden_state, out_ref.pooler_output
+    sequence_output_ref, pooled_output_ref = (
+        out_ref.last_hidden_state,
+        out_ref.pooler_output,
+    )
     sequence_output_ref[~attention_mask, :] = 0.0
 
     print(f"Output max diff: {(sequence_output - sequence_output_ref).abs().max().item()}")
@@ -90,7 +96,10 @@ def test_bert_convert_to_hf(model_name):
     hf_model = BertForPreTrainingHF(hf_config).to(dtype=dtype)
     remapped_weights = inv_remap_state_dict(model.state_dict(), config)
     result = hf_model.load_state_dict(remapped_weights, strict=False)
-    assert result.missing_keys == ['cls.seq_relationship.weight', 'cls.seq_relationship.bias'], result.missing_keys
+    assert result.missing_keys == [
+        "cls.seq_relationship.weight",
+        "cls.seq_relationship.bias",
+    ], result.missing_keys
 
     hf_model = hf_model.cuda().to(dtype=dtype)
     hf_model.eval()
@@ -107,10 +116,16 @@ def test_bert_convert_to_hf(model_name):
     out = model.bert(input_ids, attention_mask=attention_mask)
     sequence_output, pooled_output = out.last_hidden_state, out.pooler_output
     out_hf = hf_model.bert(input_ids, attention_mask=attention_mask)
-    sequence_output_hf, pooled_output_hf = out_hf.last_hidden_state, out_hf.pooler_output
+    sequence_output_hf, pooled_output_hf = (
+        out_hf.last_hidden_state,
+        out_hf.pooler_output,
+    )
     sequence_output_hf[~attention_mask, :] = 0.0
     out_ref = model_ref.bert(input_ids, attention_mask=attention_mask)
-    sequence_output_ref, pooled_output_ref = out_ref.last_hidden_state, out_ref.pooler_output
+    sequence_output_ref, pooled_output_ref = (
+        out_ref.last_hidden_state,
+        out_ref.pooler_output,
+    )
     sequence_output_ref[~attention_mask, :] = 0.0
 
     print(f"Output max diff: {(sequence_output - sequence_output_ref).abs().max().item()}")
@@ -137,12 +152,12 @@ def test_inv_remap_state_dict(model_name: str):
     flash_state_dict = remap_bert_state_dict(state_dict, config, add_pooling_layer=True)
     recovered_state_dict = inv_remap_state_dict(flash_state_dict, config)
 
-    assert (set(state_dict.keys()) - set(['cls.seq_relationship.bias', 'cls.seq_relationship.weight'])) == set(
+    assert (set(state_dict.keys()) - set(["cls.seq_relationship.bias", "cls.seq_relationship.weight"])) == set(
         recovered_state_dict.keys()
     )
 
     for k in state_dict.keys():
-        if k in ['cls.seq_relationship.bias', 'cls.seq_relationship.weight']:
+        if k in ["cls.seq_relationship.bias", "cls.seq_relationship.weight"]:
             continue
         assert state_dict[k].shape == recovered_state_dict[k].shape
         torch.testing.assert_close(state_dict[k], recovered_state_dict[k], rtol=1e-6, atol=1e-6)
@@ -170,12 +185,21 @@ def test_nomic_bert_hf_comparison(model_name):
     max_seqlen = 512
     seqlens = torch.randint(max_seqlen // 2, max_seqlen + 1, (batch_size,), device="cuda")
     attention_mask = torch.arange(max_seqlen, device="cuda")[None, :] < seqlens[:, None]
-    input_ids = torch.randint(0, hf_config.vocab_size, (batch_size, max_seqlen), dtype=torch.long, device="cuda")
+    input_ids = torch.randint(
+        0,
+        hf_config.vocab_size,
+        (batch_size, max_seqlen),
+        dtype=torch.long,
+        device="cuda",
+    )
     out = model.bert(input_ids, attention_mask=attention_mask)
     sequence_output, pooled_output = out.last_hidden_state, out.pooler_output
 
     out_ref = model_ref.bert(input_ids, attention_mask=attention_mask)
-    sequence_output_hf, pooled_output_hf = out_ref.last_hidden_state, out_ref.pooler_output
+    sequence_output_hf, pooled_output_hf = (
+        out_ref.last_hidden_state,
+        out_ref.pooler_output,
+    )
 
     assert torch.allclose(sequence_output, sequence_output_hf, atol=1e-6, rtol=1e-6)
     assert torch.allclose(pooled_output, pooled_output_hf, atol=1e-6, rtol=1e-6)
@@ -189,7 +213,12 @@ def mean_pooling(model_output, attention_mask):
 
 @pytest.mark.parametrize(
     "model_name, dtype",
-    [("nomic-ai/nomic-embed-text-v1", torch.float16), ("nomic-ai/nomic-embed-text-v1", torch.bfloat16)],
+    [
+        ("nomic-ai/nomic-embed-text-v1", torch.float16),
+        ("nomic-ai/nomic-embed-text-v1", torch.bfloat16),
+        ("intfloat/multilingual-e5-small", torch.float16),
+        ("intfloat/multilingual-e5-small", torch.bfloat16),
+    ],
 )
 def test_nomic_embed(model_name, dtype):
     hf_config = BertConfig.from_pretrained(model_name)
@@ -197,16 +226,24 @@ def test_nomic_embed(model_name, dtype):
     model_ref = AutoModel.from_pretrained(model_name, trust_remote_code=True, add_pooling_layer=False).to(
         dtype=dtype, device="cuda"
     )
+    model_ref.eval()
 
     c_config = BiEncoderConfig(model_name=model_name, nomic_encoder=True, pooling="mean", pretrained=True)
     c_model = BiEncoder(c_config).to(dtype=dtype, device="cuda")
+    c_model.eval()
 
     torch.manual_seed(0)
     batch_size = 4
     max_seqlen = 512
     seqlens = torch.randint(max_seqlen // 2, max_seqlen + 1, (batch_size,), device="cuda")
     attention_mask = torch.arange(max_seqlen, device="cuda")[None, :] < seqlens[:, None]
-    input_ids = torch.randint(0, hf_config.vocab_size, (batch_size, max_seqlen), dtype=torch.long, device="cuda")
+    input_ids = torch.randint(
+        0,
+        hf_config.vocab_size,
+        (batch_size, max_seqlen),
+        dtype=torch.long,
+        device="cuda",
+    )
     out = model_ref(input_ids, attention_mask=attention_mask)
 
     hf_embs = mean_pooling(out, attention_mask)

@@ -1,0 +1,51 @@
+train_args:
+  num_epochs: 1
+  num_train_steps: 25000
+  learning_rate: 4.0e-4
+  adam_beta1: 0.9
+  adam_beta2: 0.98
+  weight_decay: 0.0
+  eps: 1.0e-6
+  max_grad_norm: 0.0
+  schedule_type: "linear"
+  gradient_accumulation_steps: 8 
+
+  warmup_steps: 1000
+  cooldown_steps: null
+  checkpoint: null
+
+  wandb: true
+  wandb_project_name: "xlm-roberta-finetune"
+  wandb_run_name: "xlm-roberta-base-rope-base-100k-4k-bs-25k-steps-4e4"
+  wandb_entity: "gpt4all"
+
+  log_grads_every: 100
+  log_lr_every: 100
+  save_every: 5000
+  eval_every: null
+  eval_strategy: "epochs"
+  output_dir: "ckpts/xlm-roberta-base-rope-base-100k-4k-bs-25k-steps-4e4"
+  # if using deepspeed, this will be ignored
+  pretrained: null
+  pooling: "last"
+  use_fp8: false
+
+model_args:
+  "model_type": "mmlm"
+  seq_len: 2048
+  rotary_emb_fraction: 1.0
+  rotary_emb_base: 100000
+  pad_vocab_to_multiple_of: 64 
+  tokenizer_name: "FacebookAI/xlm-roberta-base"
+  model_name: "FacebookAI/xlm-roberta-base"
+  gradient_checkpointing: true
+
+data_args:
+  tokenized_dataset: "/home/ubuntu/contrastors-dev/scripts/text/cc100/cc100"
+  workers: 4
+  batch_size: 512 
+  seed: 42
+  shuffle: true
+  mlm_prob: 0.30
+  val_mlm_prob: 0.15
+  val_pct: 0.01

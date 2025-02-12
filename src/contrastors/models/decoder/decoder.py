@@ -14,6 +14,7 @@ from contrastors.layers.embedding import BertEmbeddings
 from contrastors.models.decoder.clip_decoder import remap_state_dict_hf_clip_text
 from contrastors.models.decoder.gpt_neox import remap_state_dict_hf_gpt_neox
 from contrastors.models.decoder.open_lm import remap_state_dict_hf_open_lm
+from contrastors.models.decoder.llama import remap_state_dict_hf_llama
 from contrastors.models.model_utils import state_dict_from_pretrained
 
 logger = logging.getLogger(__name__)
@@ -70,6 +71,8 @@ class DecoderPretrainedModel(PreTrainedModel):
         elif model_name.startswith("openai/clip"):
             text_only_state_dict = {k: v for k, v in state_dict.items() if "text_model" in k}
             state_dict = remap_state_dict_hf_clip_text(text_only_state_dict, config)
+        elif model_name.startswith("meta-llama/Llama-3.2-1B"):
+            state_dict = remap_state_dict_hf_llama(state_dict, config)
         else:
             raise NotImplementedError(f"Model {model_name} not supported")
 
@@ -152,7 +155,7 @@ class DecoderModel(DecoderPretrainedModel):
         if self.prenorm:
             self.drop_f = nn.Dropout(config.resid_pdrop)
             norm_cls = nn.LayerNorm if not use_rms_norm else RMSNorm
-            self.ln_f = norm_cls(config.n_embd, eps=config.layer_norm_epsilon)
+            self.ln_f = norm_cls(config.n_embd, eps=config.layer_norm_epsilon, bias=getattr(config, "ln_f_bias", True))
 
         self.gradient_checkpointing = False
         # Initialize weights and apply final processing
@@ -242,7 +245,7 @@ class DecoderModel(DecoderPretrainedModel):
 
                     return custom_forward
 
-                hidden_states, hidden_states2, residual = torch.utils.checkpoint.checkpoint(
+                hidden_states, hidden_states2, residual, _ = torch.utils.checkpoint.checkpoint(
                     create_custom_forward(layer),
                     hidden_states,
                     hidden_states2,
@@ -258,7 +261,7 @@ class DecoderModel(DecoderPretrainedModel):
                 )
 
             else:
-                hidden_states, hidden_states2, residual = layer(
+                hidden_states, hidden_states2, residual, _ = layer(
                     hidden_states,
                     hidden_states2,
                     residual,

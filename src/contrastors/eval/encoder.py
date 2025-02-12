@@ -1,3 +1,5 @@
+from pathlib import Path
+import torch.nn as nn
 import logging
 import math
 import multiprocessing as mp
@@ -14,6 +16,9 @@ from tqdm import tqdm
 from transformers import AutoModel, AutoTokenizer
 
 from contrastors import BiEncoder, BiEncoderConfig
+from sentence_transformers import SentenceTransformer
+from sentence_transformers.models import Transformer, Pooling, Normalize
+from contrastors.trainers.text_text import SentenceTransformerModule
 
 logging.basicConfig(level=logging.INFO)
 
@@ -169,6 +174,7 @@ class Encoder:
             if rotary_scaling_factor is not None:
                 config.rotary_scaling_factor = rotary_scaling_factor
             self.model = BiEncoder.from_pretrained(model_name, config=config).to(torch.bfloat16)
+            print(self.model)
         else:
             config = BiEncoderConfig(model_name=model_name, encoder=True, pooling="mean")
             if rotary_scaling_factor is not None:
@@ -191,12 +197,14 @@ class Encoder:
         binarize = kwargs.get("binarize", False)
         self.model.to(device)
 
+        # expert_to_token = {i: [] for i in range(self.model.config.num_experts)}
         with torch.no_grad():
             for i in range(0, len(sentences), batch_size):
                 batch = sentences[i : i + batch_size]
                 if self.model.config.pooling == "last":
                     batch = [sent + self.tokenizer.eos_token for sent in batch]
-                encoded = self.tokenizer(batch, padding=True, truncation=True, return_tensors="pt")
+                encoded = self.tokenizer(batch, padding=True, truncation=True, return_tensors="pt", pad_to_multiple_of=128)
+                # seq_len = encoded["input_ids"].shape[1]
                 outputs = self.model(**encoded.to(device), normalize=normalize, binarize=binarize)
                 embs = outputs["embedding"].cpu().float().numpy()
                 if self.matryoshka_dim:
@@ -364,3 +372,4 @@ class HFEncoder(Encoder):
                 embeddings.extend(pooled.cpu().float().numpy())
 
         return embeddings
+        

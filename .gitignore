@@ -1,4 +1,9 @@
-data/
+*.json
+src/contrastors/eval/*/*.json
+*multilingual_wiki*
+cc100
+*.tar
+data/**/
 **/ids_to_keep_*.json
 *counts.json*
 medi*.json

@@ -52,16 +52,15 @@ class GlueTrainer(BaseTrainer):
         super(GlueTrainer, self).__init__(config, dtype)
 
     def get_model(self, config):
-        config = config.model_config
-        model_config = NomicBertConfig.from_pretrained(config.pretrained)
+        model_args = config.model_args
+        model_config = NomicBertConfig.from_pretrained(model_args.checkpoint)
         model_config.num_labels = task_to_num_labels[self.task]
         model_config.problem_type = "regression" if self.is_regression else "single_label_classification"
-
         model = NomicBertForSequenceClassification.from_pretrained(
-            config.pretrained, config=model_config, ignore_mismatched_sizes=True, strict=False
+            model_args.checkpoint, config=model_config, ignore_mismatched_sizes=True, strict=False
         )
 
-        if config.gradient_checkpointing:
+        if model_args.gradient_checkpointing:
             model.gradient_checkpointing_enable()
 
         if self.distributed and not self.deepspeed:

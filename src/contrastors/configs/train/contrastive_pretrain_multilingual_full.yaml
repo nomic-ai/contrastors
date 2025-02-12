@@ -1,0 +1,58 @@
+train_args:
+  num_epochs: 2 
+  learning_rate: 8.0e-5
+  weight_decay: 0.01
+  warmup_steps: 1000
+  cooldown_steps: null
+  checkpoint: null
+  wandb: true
+  wandb_run_name: "nomic-multi-8eg1t2-16k-8e5-multi-epoch-128sl"
+  wandb_project_name: "moe-text"
+  wandb_entity: "gpt4all"
+  log_grads_every: 100
+  log_lr_every: 10
+  save_every: 5000 
+  eval_steps: 5000
+  eval_strategy: "steps"
+  chunk_size: 128
+  output_dir: "ckpts/nomic-multi-8eg1t2-16k-8e5-multi-epoch-128sl"
+  # if using deepspeed, this will be ignored
+  schedule_type: "inverse_sqrt"
+  max_grad_norm: 1.0
+  adam_beta1: 0.9
+  adam_beta2: 0.999
+  grad_cache: false
+  loss_fn: "clip"
+  use_fp8: false
+  clamp_logits: false
+  logit_max: 100
+  router_aux_loss_coef: 1 
+
+model_args:
+  logit_scale: 50
+  trainable_logit_scale: false
+  model_type: "encoder"
+  seq_len: 128
+  pooling: "mean"
+  nomic_encoder: true
+  add_prefix: true
+  tokenizer_name: "nomic-ai/nomic-xlm-2048"
+  model_name: "nomic-ai/nomic-xlm-2048"
+  pretrained: true
+  gradient_checkpointing: true
+  num_experts: 8 
+  pad_vocab_to_multiple_of: 64 
+  moe_top_k: 2 
+  expert_choice_router: false
+  moe_every_n_layers: 2
+  resid_pdrop: 0
+  ffn_div: 1.0
+
+
+data_args:
+  input_shards: "configs/data/contrastive_pretrain_multilingual_full.yaml"
+  workers: 0 
+  batch_size: 16384 
+  seed: 42
+  shuffle: false
+  download: true

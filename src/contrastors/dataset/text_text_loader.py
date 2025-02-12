@@ -20,6 +20,124 @@ from contrastors.distributed import print_in_order, print_rank_zero
 MAPPED_NAMES = {"paired": ["query", "document"], "self": ["query"], "triplet": ["query", "document", "negative"]}
 KEY2PREFIX = {"query": "query", "document": "passage", "negative": "passage"}
 S3_COMMAND = "pipe: aws s3 cp --endpoint-url https://9fa58365a1a3d032127970d0bd9a1290.r2.cloudflarestorage.com/ --cli-read-timeout=300 {s3_uri} -"
+DEFAULT_COL_TO_MAX_TOKENS = {"query": 32, "document": 256, "negative": 256}
+
+import mmap
+import json
+import os
+from pathlib import Path
+import struct
+
+class MemoryMappedDict:
+    def __init__(self, filename):
+        self.filename = filename
+        self.file_obj = None
+        self.mmap_obj = None
+        self.index = {}  # Stores {key: (offset, length)} pairs
+        
+    def save_dict(self, data):
+        """Serialize dictionary with indexed access."""
+        # First, write the index information
+        current_offset = 0
+        
+        # Create temporary storage for serialized values
+        serialized_values = []
+        
+        # Process each key-value pair
+        for key, value in data.items():
+            # Serialize the value
+            value_json = json.dumps(value)
+            value_bytes = value_json.encode('utf-8')
+            
+            # Store the offset and length
+            self.index[key] = (current_offset, len(value_bytes))
+            
+            # Update offset for next value
+            current_offset += len(value_bytes)
+            
+            # Store serialized value
+            serialized_values.append(value_bytes)
+
+        # Serialize the index itself
+        index_json = json.dumps(self.index)
+        index_bytes = index_json.encode('utf-8')
+        
+        # Write index size as 8-byte integer at start of file
+        with open(self.filename, 'wb') as f:
+            f.write(struct.pack('Q', len(index_bytes)))
+            f.write(index_bytes)
+            # Write all values
+            for value_bytes in serialized_values:
+                f.write(value_bytes)
+        
+        # Open file and create memory mapping
+        self.file_obj = open(self.filename, 'r+b')
+        self.mmap_obj = mmap.mmap(self.file_obj.fileno(), 0)
+        
+    def _load_index(self):
+        """Load just the index portion of the file."""
+        if not self.mmap_obj:
+            self.file_obj = open(self.filename, 'r+b')
+            self.mmap_obj = mmap.mmap(self.file_obj.fileno(), 0)
+        
+        # Read index size (first 8 bytes)
+        index_size = struct.unpack('Q', self.mmap_obj[:8])[0]
+        
+        # Read and parse index
+        index_bytes = self.mmap_obj[8:8 + index_size]
+        self.index = json.loads(index_bytes.decode('utf-8'))
+    
+    def get(self, key):
+        """Get a single value from the memory mapped file."""
+        if not self.index:
+            self._load_index()
+            
+        if key not in self.index:
+            raise KeyError(f"Key '{key}' not found")
+            
+        offset, length = self.index[key]
+        # Account for index size and its 8-byte length prefix
+        index_size = struct.unpack('Q', self.mmap_obj[:8])[0]
+        real_offset = 8 + index_size + offset
+        
+        # Read just this value's bytes
+        value_bytes = self.mmap_obj[real_offset:real_offset + length]
+        return json.loads(value_bytes.decode('utf-8'))
+    
+    def set(self, key, value):
+        """This is a simplified set - it requires rewriting the entire file."""
+        current_data = self.get_all()
+        current_data[key] = value
+        self.save_dict(current_data)
+    
+    def get_all(self):
+        """Get all key-value pairs (loads everything into RAM)."""
+        if not self.index:
+            self._load_index()
+            
+        result = {}
+        for key in self.index:
+            result[key] = self.get(key)
+        return result
+    
+    def keys(self):
+        """Get list of keys without loading values."""
+        if not self.index:
+            self._load_index()
+        return list(self.index.keys())
+    
+    def close(self):
+        """Close memory mapping and file."""
+        if self.mmap_obj is not None:
+            self.mmap_obj.close()
+        if self.file_obj is not None:
+            self.file_obj.close()
+    
+    def __enter__(self):
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
 
 
 def log_and_continue(exn):
@@ -45,9 +163,12 @@ class StreamingShardDataset(IterableDataset):
         download_locally=False,
         process_one_shard=False,
         weighted_sampling=False,
-        verbose=False,
+        verbose=True,
         infinite=False,
         sample_negatives=False,
+        run_name=None,
+        query_max_length=None,
+        document_max_length=None,
     ):
         self.num_samples_per_shard = {}
         self.max_per_shard = {}
@@ -71,6 +192,12 @@ class StreamingShardDataset(IterableDataset):
         self.verbose = verbose
         self.infinite = infinite
         self.sample_negatives = sample_negatives
+        self.run_name = run_name 
+
+        if query_max_length is not None and document_max_length is not None:
+            self.col_max_length = {"query": query_max_length, "document": document_max_length, "negative": document_max_length} 
+        else:
+            self.col_max_length = DEFAULT_COL_TO_MAX_TOKENS
 
         if dist.is_initialized():
             self.local_rank = int(os.environ["LOCAL_RANK"])
@@ -102,7 +229,7 @@ class StreamingShardDataset(IterableDataset):
         if not os.path.exists(path):
             os.makedirs(path, exist_ok=True)
 
-        self.path = f"{path}/rank_{self.rank}_processed.json"
+        self.path = f"{path}/rank_{self.rank}_processed_{self.run_name}.json"
         with open(self.path, "w") as f:
             json.dump({path: 0 for path in self.ds_paths}, f, indent=3)
 
@@ -118,7 +245,12 @@ class StreamingShardDataset(IterableDataset):
         for url in urls:
             # only keep the last two parts of the path
             # this assumes the path is in the form s3://bucket/dataset/file.jsonl.gz
-            normed = "/".join(url.split("/")[-3:])
+            # UGH
+            split = url.split("/")
+            if len(split) >= 6:
+                normed = "/".join(split[-4:])
+            else:
+                normed = "/".join(split[-3:])
             norm_urls.append(normed)
 
         return norm_urls
@@ -151,8 +283,21 @@ class StreamingShardDataset(IterableDataset):
             if "count_per_file" in counts_per_file:
                 counts_per_file = counts_per_file["count_per_file"]
 
+            # normalize urls for counts 
+            counts_per_file = {url.replace("s3://", ""): count for url, count in counts_per_file.items()}
             with self.fs.open(f"{bucket}/offsets.json.gz", "rb", compression="gzip") as stream:
                 offsets = json.load(stream)
+            offsets = {url.replace("s3://", ""): offset for url, offset in offsets.items()}
+
+            tmp_dir = Path(f"/tmp/{bucket.replace('s3://', '')}")
+            if not tmp_dir.exists():
+                tmp_dir.mkdir(parents=True, exist_ok=True)
+
+            memmap = MemoryMappedDict(str(tmp_dir / f"offsets_{self.rank}_{self.run_name}.mmap"))
+            memmap.save_dict(offsets)
+            bucket2offsets = {bucket.replace("s3://", ""): memmap}
+
+            self.path2offsets = {**self.path2offsets, **bucket2offsets}
 
             # edge case where we don't use all files in the bucket
             normalized_urls = self.normalize_url(urls)
@@ -177,11 +322,13 @@ class StreamingShardDataset(IterableDataset):
                 del present_files[file]
                 paths.remove(f"s3://{file}")
 
+            if sum(max_per_file.values()) == 0:
+                print_rank_zero(f"WARNING!!!: No data for {ds['name']} with {ds['bucket']} and {ds['objective']}")
+
             self.max_per_ds[ds["name"]] = sum(max_per_file.values()) * self.world_size
             self.total_samples += sum(max_per_file.values()) * self.world_size
             self.num_samples_per_shard = {**self.num_samples_per_shard, **present_files}
             self.max_per_shard = {**self.max_per_shard, **max_per_file}
-            self.path2offsets = {**self.path2offsets, **offsets}
             self.kd_loss.update({url: ds.get("kd_loss", False) for url in urls})
 
             query_only = ds.get("query_only", False)
@@ -213,16 +360,18 @@ class StreamingShardDataset(IterableDataset):
         with open(self.path, "w") as f:
             json.dump(processed, f, indent=3)
 
-        to_remove = []
+        current_paths = []
+        # current paths is what we sample from so we need to remove all files that we have exceeded
+        # BUT don't update ds_paths as it stores the original full list of paths
         for path in self.ds_paths:
-            if processed[path] >= self.max_per_shard[path]:
+            if processed[path] >= self.max_per_shard[path.replace("s3://", "")]:
                 print(
                     f"Rank: {self.rank} has already processed {processed[path]} samples from {path}, removing from paths"
                 )
-                to_remove.append(path)
+            else:
+                current_paths.append(path)
 
-        for path in to_remove:
-            self.ds_paths.remove(path)
+        self.current_paths = current_paths
 
     def __len__(self):
         return self.total_samples
@@ -252,6 +401,7 @@ class StreamingShardDataset(IterableDataset):
                     if self.verbose:
                         print_rank_zero(f"Finished processing {path}")
                     self.current_paths.remove(path)
+                    del self.path2stream[path]
                     # if we only process one shard at a time
                     if self.process_one_shard:
                         self.current_shard = None
@@ -289,8 +439,8 @@ class StreamingShardDataset(IterableDataset):
 
         weights = {}
         for file, size in self.num_samples_per_shard.items():
-            remaining_size = size - already_processed[file] * self.world_size
-            weights[file] = remaining_size / total_size
+            remaining_size = size - already_processed[f"s3://{file}"] * self.world_size
+            weights[f"s3://{file}"] = remaining_size / total_size
 
         return weights
 
@@ -333,16 +483,20 @@ class StreamingShardDataset(IterableDataset):
         rank_processed = num_processed + self.rank * self.rank_batch_size
 
         normalized_path = self.normalize_url([path])[0]
+        bucket = "/".join(path.split("/")[:-1]).replace("s3://", "")
 
-        offset = self.path2offsets[normalized_path][str(rank_processed)][0]
+        memmap = self.path2offsets[bucket]
+        offsets = memmap.get(normalized_path)
+        seek_to = offsets[str(rank_processed)][0]
+
         # seek to current offset
-        if stream.tell() != offset:
-            print_rank_zero(f"Seeking to offset {offset}, at {stream.tell()}, {num_processed=}")
-            stream.seek(offset)
+        if stream.tell() != seek_to:
+            print_rank_zero(f"Seeking to offset {seek_to}, at {stream.tell()}, {num_processed=}")
+            stream.seek(seek_to)
 
         objective = self.path2objective[normalized_path]
 
-        return self.jsonl_iterator(stream, objective, path, rank_processed)
+        return self.jsonl_iterator(stream, objective, path, rank_processed, offsets)
 
     def download_rank_zero(self, s3_path):
         # only download if we are rank 0 otherwise wait for rank 0 to download
@@ -358,10 +512,9 @@ class StreamingShardDataset(IterableDataset):
 
         return local_path
 
-    def jsonl_iterator(self, fileobj, objective, path, num_processed, handler=log_and_continue):
+    def jsonl_iterator(self, fileobj, objective, path, num_processed, offsets, handler=log_and_continue):
         # returns generator of jsonl lines
         stream = fileobj
-        offsets = self.path2offsets[self.normalize_url([path])[0]]
         # offset num_processed by local_rank so we read different parts of the file
         try:
             for i in range(num_processed, len(offsets)):
@@ -450,6 +603,11 @@ class StreamingShardDataset(IterableDataset):
         contrastive_type = objective["type"]
         s3_path = samples[0]["__key__"]
         dataset_name = s3_path.split("/")[-2]
+        if "mc4" in s3_path:
+            dataset_name = f"mc4_{dataset_name}"
+        elif "multilingual-cc-news" in s3_path:
+            dataset_name = f"cc_news_{dataset_name}"
+
         tokenized_inputs["dataset_name"] = dataset_name
         for col in MAPPED_NAMES[contrastive_type]:
             # this is stored in `document` now
@@ -473,16 +631,19 @@ class StreamingShardDataset(IterableDataset):
 
             if self.add_prefix:
                 # add either "query: " or "document: " to the beginning of the text
-                if dataset_name in self.path2prefix:
-                    prefix = self.path2prefix[dataset_name][col]
-                elif dataset_name in self.query_only:
-                    prefix = "query"
+                if dataset_name in self.query_only and col != "query":
+                    collected = [text for text in collected]
                 else:
-                    prefix = KEY2PREFIX[col]
+                    if dataset_name in self.path2prefix:
+                        prefix = self.path2prefix[dataset_name][col]
+                    elif dataset_name in self.query_only:
+                        prefix = "query"
+                    else:
+                        prefix = KEY2PREFIX[col]
 
-                collected = [f"{prefix}: {text}" for text in collected]
+                    collected = [f"{prefix}: {text}" for text in collected]
 
-            tokenized = self.tokenizer(collected, padding="max_length", truncation=True, return_tensors="pt")
+            tokenized = self.tokenizer(collected, padding="max_length", truncation=True, return_tensors="pt", max_length=self.col_max_length[col])
             # if text gets truncated, we want to make sure the last token is the eos token
             # attention mask will already be full of 1s so we don't need to update
             # if text doesn't get truncated, the eos token will be the last token

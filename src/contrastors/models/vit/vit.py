@@ -206,7 +206,7 @@ class ViTModel(ViTPretrainedModel):
 
                     return custom_forward
 
-                hidden_states, _, residual = torch.utils.checkpoint.checkpoint(
+                hidden_states, _, residual, _ = torch.utils.checkpoint.checkpoint(
                     create_custom_forward(layer),
                     hidden_states,
                     hidden_states2,
@@ -230,7 +230,7 @@ class ViTModel(ViTPretrainedModel):
                     use_reentrant=False,
                 )
             else:
-                hidden_states, _, residual = layer(
+                hidden_states, _, residual, _ = layer(
                     hidden_states, None, residual=residual, is_padded_inputs=False, rope=rope
                 )
 

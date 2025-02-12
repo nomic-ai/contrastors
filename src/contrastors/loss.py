@@ -10,6 +10,69 @@ from contrastors.distributed import gather, gather_with_grad
 from contrastors.rand_state import RandContext
 
 
+def calculate_auxiliary_loss(router_logits, num_experts, top_k, attention_mask=None, tracker=None, name=None, step=None):
+    # TODO: this might be annoying since we unpad during training
+    device = router_logits[0].device
+    concatenated_router_logits = torch.cat(router_logits, dim=0).to(device)
+
+    router_weights = F.softmax(concatenated_router_logits, dim=-1)
+    _, selected_experts = torch.topk(router_weights, top_k, dim=-1)
+
+    expert_mask = F.one_hot(selected_experts, num_experts)
+    if attention_mask is not None:
+        batch_size, sequence_length = attention_mask.shape
+        num_hidden_layers = concatenated_router_logits.shape[0] // (batch_size * sequence_length)
+
+        # Compute the mask that masks all padding tokens as 0 with the same shape of expert_mask
+        expert_attention_mask = (
+            attention_mask[None, :, :, None, None]
+            .expand((num_hidden_layers, batch_size, sequence_length, top_k, num_experts))
+            .reshape(-1, top_k, num_experts)
+            .to(device)
+        )
+
+        # Compute the percentage of tokens routed to each experts
+        tokens_per_expert = torch.sum(expert_mask.float() * expert_attention_mask, dim=0) / torch.sum(
+            expert_attention_mask, dim=0
+        )
+
+        # Compute the mask that masks all padding tokens as 0 with the same shape of tokens_per_expert
+        router_per_expert_attention_mask = (
+            attention_mask[None, :, :, None]
+            .expand((num_hidden_layers, batch_size, sequence_length, num_experts))
+            .reshape(-1, num_experts)
+            .to(device)
+        )
+
+        # Compute the average probability of routing to these experts
+        router_prob_per_expert = torch.sum(router_weights * router_per_expert_attention_mask, dim=0) / torch.sum(
+            router_per_expert_attention_mask, dim=0
+        )
+
+    else:
+        tokens_per_expert = torch.mean(expert_mask.float(), dim=0)
+        router_prob_per_expert = torch.mean(router_weights, dim=0)
+
+    overall_loss = torch.sum(tokens_per_expert * router_prob_per_expert.unsqueeze(0))
+
+    if tracker is not None:
+        # log the percentage of tokens routed to each expert
+        tokens_per_expert = tokens_per_expert.detach().cpu().numpy()
+        router_prob_per_expert = router_prob_per_expert.detach().cpu().numpy()
+        for k in range(top_k):
+            tokens_per_expert_k = tokens_per_expert[k]
+
+            tpe_data = [(f"expert_{i}", tokens_per_expert_k[i]) for i in range(num_experts)]
+            tpe_table = wandb.Table(data=tpe_data, columns=["expert", "prob"])
+            tracker.log({f"tokens_per_expert_pct_k{k}": wandb.plot.bar(tpe_table, "expert", "prob", title=f"tokens_per_expert_pct_k{k}")}, step=step)
+
+        rpe_data = [(f"expert_{i}", router_prob_per_expert[i]) for i in range(num_experts)]
+        rpe_table = wandb.Table(data=rpe_data, columns=["expert", "prob"])
+        tracker.log({f"router_prob_per_expert_pct": wandb.plot.bar(rpe_table, "expert", "prob", title="router_prob_per_expert_pct")}, step=step)
+
+    return overall_loss * num_experts
+
+
 def clip_loss(
     query,
     document,
@@ -57,14 +120,14 @@ def clip_loss(
         similarity_document_query = logit_scale(torch.matmul(document, query.T))
         loss = (
             F.cross_entropy(similarity_query_document, labels) + F.cross_entropy(similarity_document_query, labels)
-        ) * dist.get_world_size()
+        ) #* dist.get_world_size()
     else:
         loss = F.cross_entropy(similarity_query_document, labels) * dist.get_world_size()
 
     if tracker is not None:
         # this will only calculate 1/N accuracy where N is the number of gpus
         accuracy = (similarity_query_document.argmax(dim=1) == labels).float().mean()
-        tracker.log({f"accuracy_{dataset}": accuracy.detach().cpu().item()}, step=step)
+        tracker.log({f"accuracy/accuracy_{dataset}": accuracy.detach().cpu().item()}, step=step)
 
     return loss
 
@@ -83,7 +146,7 @@ def get_chunked_embeddings(model, chunks):
     return torch.concat(embeddings, dim=0), rand_states
 
 
-def accumulate_gradients(model, inputs, cache, rand_states):
+def accumulate_gradients(model, inputs, cache, rand_states, router_aux_coeff):
     length = len(inputs)
     sync_contexts = [model.no_sync for _ in range(length - 1)] + [nullcontext]
 
@@ -91,8 +154,10 @@ def accumulate_gradients(model, inputs, cache, rand_states):
         with sync_context():
             with state:
                 with torch.autocast("cuda", dtype=torch.bfloat16):
-                    embedding = model(**inp)["embedding"]
-            surrogate = torch.dot(embedding.flatten(), grad.flatten())
+                    embedding = model(**inp)
+            surrogate = torch.dot(embedding["embedding"].flatten(), grad.flatten())
+            if "router_loss" in embedding and embedding["router_loss"] is not None:
+                surrogate = surrogate + embedding["router_loss"] * router_aux_coeff
             surrogate.backward()
 
 
@@ -119,7 +184,7 @@ def cache_loss(tower1, tower2, query_embeddings, document_embeddings, logit_scal
     return query_cache, document_cache, loss.detach()
 
 
-def grad_cache_loss(tower1, t1_inputs, tower2, t2_inputs, chunk_size, logit_scale, bidirectional=False):
+def grad_cache_loss(tower1, t1_inputs, tower2, t2_inputs, chunk_size, logit_scale, bidirectional=False, router_aux_coeff=False):
     total_bs = t1_inputs["input_ids"].shape[0]
     chunked_queries = []
     chunked_documents = []
@@ -141,8 +206,8 @@ def grad_cache_loss(tower1, t1_inputs, tower2, t2_inputs, chunk_size, logit_scal
     chunked_query_cache = query_cache.split(chunk_size)
     chunked_document_cache = document_cache.split(chunk_size)
 
-    accumulate_gradients(tower1, chunked_queries, chunked_query_cache, query_rand_states)
+    accumulate_gradients(tower1, chunked_queries, chunked_query_cache, query_rand_states, router_aux_coeff=router_aux_coeff)
     if tower2.training:
-        accumulate_gradients(tower2, chunked_documents, chunked_document_cache, doc_rand_states)
+        accumulate_gradients(tower2, chunked_documents, chunked_document_cache, doc_rand_states, router_aux_coeff=router_aux_coeff)
 
     return loss

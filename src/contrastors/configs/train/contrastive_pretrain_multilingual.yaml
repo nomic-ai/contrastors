@@ -1,0 +1,57 @@
+train_args:
+  num_epochs: 1 
+  learning_rate: 8.0e-5
+  weight_decay: 0.01
+  warmup_steps: 700
+  cooldown_steps: null
+  checkpoint: null
+  wandb: true
+  wandb_run_name: "xlm-8eg1t1-4k-8e5-pos-ids"
+  wandb_project_name: "moe-text"
+  wandb_entity: "gpt4all"
+  log_grads_every: 100
+  log_lr_every: 10
+  eval_steps: 5000
+  eval_strategy: "steps"
+  save_every: 10000 
+  chunk_size: 128
+  output_dir: "ckpts/xlm-8eg1t1-4k-8e5-pos-ids"
+  # if using deepspeed, this will be ignored
+  schedule_type: "cosine"
+  max_grad_norm: 1.0
+  adam_beta1: 0.9
+  adam_beta2: 0.999
+  grad_cache: false
+  loss_fn: "clip"
+  use_fp8: false
+  clamp_logits: false
+  logit_max: 100
+  router_aux_loss_coef: 1 
+
+model_args:
+  logit_scale: 50
+  trainable_logit_scale: false
+  model_type: "encoder"
+  seq_len: 128
+  pooling: "mean"
+  nomic_encoder: true
+  add_prefix: true
+  tokenizer_name: "FacebookAI/xlm-roberta-base"
+  model_name: "FacebookAI/xlm-roberta-base"
+  pretrained: true
+  gradient_checkpointing: true
+  num_experts: 8 
+  pad_vocab_to_multiple_of: 64 
+  top_k: 1 
+  expert_choice_router: false
+  moe_every_n_layers: 2
+  resid_pdrop: 0
+
+
+data_args:
+  input_shards: "configs/data/contrastive_pretrain_multilingual.yaml"
+  workers: 0 
+  batch_size: 4096 
+  seed: 42
+  shuffle: false
+  download: true

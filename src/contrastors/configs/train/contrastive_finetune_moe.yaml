@@ -1,0 +1,64 @@
+train_args:
+  num_epochs: 1 
+  learning_rate: 2.0e-5
+  weight_decay: 0.01
+  warmup_steps: 400 
+  checkpoint: null
+  wandb: true
+  wandb_project_name: "moe-text"
+  wandb_entity: "gpt4all"
+  log_grads_every: 100
+  log_lr_every: 10
+  save_every: 4500 
+  eval_steps: 1000
+  eval_strategy: "steps"
+  chunk_size: 32
+  output_dir: "ckpts/nomic-1ep-0lr-ft-2e5-good-e5-data-only-10negs-no-aux"
+  # if using deepspeed, this will be ignored
+  schedule_type: "linear"
+  max_grad_norm: 1.0
+  adam_beta1: 0.9
+  adam_beta2: 0.999
+  grad_cache: false
+  loss_fn: "clip"
+  use_fp8: false
+  clamp_logits: false
+  logit_max: 100
+  matryoshka_dims: null
+  matryoshka_loss_weights: null
+  router_aux_loss_coef: 0
+
+model_args:
+  model_type: "encoder"
+  logit_scale: 50
+  trainable_logit_scale: false
+  seq_len: 512
+  pooling: "mean"
+  nomic_encoder: true
+  add_prefix: true
+  num_negatives: 10
+  tokenizer_name: "nomic-ai/nomic-xlm-2048"
+  model_name: "nomic-ai/nomic-xlm-2048"
+  checkpoint: "/home/ubuntu/contrastors-dev/src/contrastors/ckpts/take2"
+  pretrained: true
+  num_experts: 8 
+  pad_vocab_to_multiple_of: 64 
+  moe_top_k: 2 
+  expert_choice_router: false
+  moe_every_n_layers: 2
+  resid_pdrop: 0
+  ffn_div: 1.0
+  gradient_checkpointing: true
+
+
+data_args:
+  input_shards: "configs/data/finetune_multilingual_bge_triplets.yaml"
+  workers: 8 
+  batch_size: 256
+  seed: 42
+  shuffle: false
+  download: true
+  streaming: true
+  weighted_sampling: true
+  verbose: true
+  sample_negatives: false

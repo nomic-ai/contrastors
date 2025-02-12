@@ -266,32 +266,32 @@ out = [
 out = {k: v for d in out for k, v in d.items()}
 df = pd.DataFrame([out])
 
-df.insert(1, f"Average ({len(TASK_LIST_EN)} datasets)", df[TASK_LIST_EN].mean(axis=1, skipna=False))
+# df.insert(1, f"Average ({len(TASK_LIST_EN)} datasets)", df[TASK_LIST_EN].mean(axis=1, skipna=False))
+# df.insert(
+#     2,
+#     f"Classification Average ({len(TASK_LIST_CLASSIFICATION)} datasets)",
+#     df[TASK_LIST_CLASSIFICATION].mean(axis=1, skipna=False),
+# )
+# df.insert(
+#     3, f"Clustering Average ({len(TASK_LIST_CLUSTERING)} datasets)", df[TASK_LIST_CLUSTERING].mean(axis=1, skipna=False)
+# )
+# df.insert(
+#     4,
+#     f"Pair Classification Average ({len(TASK_LIST_PAIR_CLASSIFICATION)} datasets)",
+#     df[TASK_LIST_PAIR_CLASSIFICATION].mean(axis=1, skipna=False),
+# )
+# df.insert(
+#     5, f"Reranking Average ({len(TASK_LIST_RERANKING)} datasets)", df[TASK_LIST_RERANKING].mean(axis=1, skipna=False)
+# )
 df.insert(
-    2,
-    f"Classification Average ({len(TASK_LIST_CLASSIFICATION)} datasets)",
-    df[TASK_LIST_CLASSIFICATION].mean(axis=1, skipna=False),
+    1, f"Retrieval Average ({len(TASK_LIST_RETRIEVAL)} datasets)", df[TASK_LIST_RETRIEVAL].mean(axis=1, skipna=False)
 )
-df.insert(
-    3, f"Clustering Average ({len(TASK_LIST_CLUSTERING)} datasets)", df[TASK_LIST_CLUSTERING].mean(axis=1, skipna=False)
-)
-df.insert(
-    4,
-    f"Pair Classification Average ({len(TASK_LIST_PAIR_CLASSIFICATION)} datasets)",
-    df[TASK_LIST_PAIR_CLASSIFICATION].mean(axis=1, skipna=False),
-)
-df.insert(
-    5, f"Reranking Average ({len(TASK_LIST_RERANKING)} datasets)", df[TASK_LIST_RERANKING].mean(axis=1, skipna=False)
-)
-df.insert(
-    6, f"Retrieval Average ({len(TASK_LIST_RETRIEVAL)} datasets)", df[TASK_LIST_RETRIEVAL].mean(axis=1, skipna=False)
-)
-df.insert(7, f"STS Average ({len(TASK_LIST_STS)} datasets)", df[TASK_LIST_STS].mean(axis=1, skipna=False))
-df.insert(
-    8,
-    f"Summarization Average ({len(TASK_LIST_SUMMARIZATION)} dataset)",
-    df[TASK_LIST_SUMMARIZATION].mean(axis=1, skipna=False),
-)
+# df.insert(7, f"STS Average ({len(TASK_LIST_STS)} datasets)", df[TASK_LIST_STS].mean(axis=1, skipna=False))
+# df.insert(
+#     8,
+#     f"Summarization Average ({len(TASK_LIST_SUMMARIZATION)} dataset)",
+#     df[TASK_LIST_SUMMARIZATION].mean(axis=1, skipna=False),
+# )
 df = df.T
 df.reset_index(inplace=True)
 df.columns = ["Dataset", "Score"]

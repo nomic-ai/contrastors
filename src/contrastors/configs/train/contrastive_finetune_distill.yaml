@@ -1,0 +1,63 @@
+train_args:
+  num_epochs: 1
+  learning_rate: 2.0e-4
+  weight_decay: 0.01
+  eps: 1.0e-8
+  warmup_steps: 100
+  wandb: true
+  wandb_project_name: "distill"
+  wandb_entity: "gpt4all"
+  wandb_run_name: "nomic-embed-v2-distill-mse-768"
+  log_grads_every: 100
+  log_lr_every: 10
+  save_every: 10000
+  eval_steps: 100
+  eval_strategy: "steps"
+  output_dir: "ckpts/nomic-embed-v2-distill-mse-768"
+  gradient_accumulation_steps: 1
+  schedule_type: "linear"
+  max_grad_norm: 1.0
+  adam_beta1: 0.9
+  adam_beta2: 0.999
+  loss_fn: "clip"
+  grad_cache: false
+  chunk_size: 32
+  clamp_logits: false
+  logit_max: 100.0
+  matryoshka_dims: null
+  matryoshka_loss_weights: null
+  distill_loss_fn: "mse"
+  distill_temperature: 1
+
+
+model_args:
+  model_type: "distill"
+  logit_scale: 50.0
+  trainable_logit_scale: false
+  seq_len: 512
+  pretrained: true
+  model_name: "FacebookAI/xlm-roberta-base"
+  checkpoint: "/home/ubuntu/contrastors-dev/src/contrastors/ckpts/nomic-embed-v2-moe"
+  pooling: "mean"
+  nomic_encoder: true
+  add_prefix: true
+  num_negatives: 0 
+  tokenizer_name: "FacebookAI/xlm-roberta-base"
+  gradient_checkpointing: false
+  ffn_div: 2 
+  query_prefix: "search_query: "
+  document_prefix: "search_document: "
+  distill_init_pretrained: true
+
+data_args:
+  shuffle: false
+  workers: 8
+  batch_size: 256
+  seed: 42
+  val_pct: null
+  input_shards: "configs/data/finetune_multilingual_bge_triplets.yaml"
+  download: true
+  process_one_shard: false
+  streaming: true
+  weighted_sampling: true
+  verbose: true

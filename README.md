@@ -21,6 +21,7 @@
 
 * [Nomic Embed: Training a Reproducible Long Context Text Embedder](https://arxiv.org/abs/2402.01613) by Zach Nussbaum, Jack Morris, Andriy Mulyar, and Brandon Duderstadt
 * [Nomic Embed Vision: Expanding the Latent Space](https://arxiv.org/abs/2406.18587) by Zach Nussbaum, Brandon Duderstadt, and Andriy Mulyar
+* [Training Sparse Mixture Of Experts Text Embedding Models](https://static.nomic.ai/nomic_embed_multi_preprint.pdf) by Zach Nussbaum and Brandon Duderstadt 
 
 ## Getting Started and Requirements
 
@@ -166,6 +167,8 @@ deepspeed  train.py --deepspeed_config=configs/deepspeed/image_text.json --confi
 
 We provide pretrained models for `Nomic Embed` at the following locations:
 
+- [nomic-embed-text-v2-moe](https://huggingface.co/nomic-ai/nomic-embed-text-v2-moe)
+- [nomic-embed-text-v2-moe-unsupervised](https://huggingface.co/nomic-ai/nomic-embed-text-v2-moe-unsupervised)
 - [nomic-embed-text-v1](https://huggingface.co/nomic-ai/nomic-embed-text-v1)
 - [nomic-embed-vision-v1](https://huggingface.co/nomic-ai/nomic-embed-vision-v1)
 - [nomic-embed-text-v1.5](https://huggingface.co/nomic-ai/nomic-embed-text-v1.5)
@@ -173,6 +176,7 @@ We provide pretrained models for `Nomic Embed` at the following locations:
 - [nomic-embed-text-v1-ablated](https://huggingface.co/nomic-ai/nomic-embed-text-v1-ablated)
 - [nomic-embed-text-v1-unsupervised](https://huggingface.co/nomic-ai/nomic-embed-text-v1-unsupervised)
 - [nomic-bert-2048](https://huggingface.co/nomic-ai/nomic-bert-2048)
+- [nomic-xlm-2048](https://huggingface.co/nomic-ai/nomic-xlm-2048)
 
 ## Join the Nomic Community
 

@@ -14,9 +14,9 @@ train_args:
   checkpoint: null
 
   wandb: true
-  wandb_project_name: "bert"
+  wandb_project_name: "xlm-roberta-finetune-glue"
   wandb_entity: "gpt4all"
-  wandb_run_name: "glue-trainer-test"
+  wandb_group: "xlmr-10k-rope-cola"
 
   log_grads_every: 100
   log_lr_every: 10
@@ -26,8 +26,8 @@ train_args:
 model_args:
   model_type: "glue"
   seq_len: 128
-  tokenizer_name: "bert-base-uncased"
-  pretrained: "ckpts/mlm-trainer/epoch_0_model"
+  tokenizer_name: "FacebookAI/xlm-roberta-base"
+  checkpoint: "/home/ubuntu/contrastors-dev/src/contrastors/ckpts/xlm-roberta-rope-base-100k/epoch_0_model"
 
 data_args:
   task_name: "cola"

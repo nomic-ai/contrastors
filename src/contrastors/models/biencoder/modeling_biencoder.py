@@ -16,6 +16,7 @@ from contrastors.layers.mlp import MLP, GatedMLP
 from contrastors.models.decoder import DecoderModel
 from contrastors.models.decoder.gpt_neox import gpt_neox_config_to_gpt2_config
 from contrastors.models.decoder.open_lm import open_lm_config_to_gpt2_config
+from contrastors.models.decoder.llama import llama_config_to_gpt2_config
 from contrastors.models.encoder import NomicBertModel, bert_config_to_nomic_config
 from contrastors.models.vit import (
     ViTModel,
@@ -201,6 +202,8 @@ class BiEncoder(PreTrainedModel):
                         model_config = gpt_neox_config_to_gpt2_config(model_config)
                     elif "open_lm" in config.model_name:
                         model_config = open_lm_config_to_gpt2_config(model_config)
+                    elif "meta-llama" in config.model_name:
+                        model_config = llama_config_to_gpt2_config(model_config)
                     if config.pretrained:
                         self.trunk = DecoderModel.from_pretrained(
                             config.model_name, config=model_config, safe_serialization=True
@@ -222,8 +225,26 @@ class BiEncoder(PreTrainedModel):
                         config=model_config,
                         # don't train with dynamic NTK rotary
                         rotary_scaling_factor=None,
+                        num_experts=getattr(config, "num_experts", 0),
+                        moe_top_k=getattr(config, "moe_top_k", 1),
+                        router_aux_loss_coef=getattr(config, "router_aux_loss_coef", None),
+                        moe_impl=getattr(config, "moe_impl", "megablocks"),
+                        ffn_div=getattr(config, "ffn_div", 1.0),
+                        moe_normalize_expert_weights=getattr(config, "moe_normalize_expert_weights", False),
+                        expert_choice_router=getattr(config, "expert_choice_router", False),
+                        pad_vocab_size_multiple=getattr(config, "pad_vocab_to_multiple_of", 1),
+                        num_shared_experts=getattr(config, "num_shared_experts", 0),
+                        resid_pdrop=getattr(config, "resid_pdrop", None),
+                        moe_every_n_layers=getattr(config, "moe_every_n_layers", 1),
+                        moe_resid_pdrop=getattr(config, "moe_resid_pdrop", None),
                     )
                 else:
+                    model_config.num_experts = getattr(config, "num_experts", 0)
+                    model_config.moe_top_k = getattr(config, "moe_top_k", 1)
+                    model_config.router_aux_loss_coef = getattr(config, "router_aux_loss_coef", None)
+                    model_config.moe_impl = getattr(config, "moe_impl", "megablocks")
+                    model_config.moe_normalize_expert_weights = getattr(config, "moe_normalize_expert_weights", False)
+                    model_config.expert_choice_router = getattr(config, "expert_choice_router", False)
                     self.trunk = NomicBertModel(config=model_config, add_pooling_layer=False)
         else:
             self.trunk = AutoModel.from_pretrained(config.model_name, trust_remote_code=True, add_pooling_layer=False)
@@ -238,7 +259,7 @@ class BiEncoder(PreTrainedModel):
             self.frozen_trunk = False
 
         if config.gradient_checkpointing:
-            self.trunk.gradient_checkpointing_enable()
+            self.trunk.gradient_checkpointing_enable({"use_reentrant": False})
 
         if config.projection_dim:
             self.proj = nn.Linear(self.trunk.config.hidden_size, config.projection_dim)
@@ -267,6 +288,15 @@ class BiEncoder(PreTrainedModel):
         context = torch.no_grad if self.frozen_trunk else nullcontext
         with context():
             trunk_output = self.trunk(input_ids, attention_mask=attention_mask, **kwargs)
+
+        router_logits, router_loss, tokens_per_expert = None, None, None
+        if getattr(trunk_output, "router_logits", None) is not None and self.training:
+            router_logits = trunk_output.router_logits
+        if getattr(trunk_output, "router_loss", None) is not None and self.training:
+            router_loss = trunk_output.router_loss
+        if getattr(trunk_output, "tokens_per_expert", None) is not None:
+            tokens_per_expert = trunk_output.tokens_per_expert
+
         trunk_output = trunk_output[0]
 
         if self.selector is not None:
@@ -282,8 +312,8 @@ class BiEncoder(PreTrainedModel):
         embedding = self.proj(embedding)
 
         if binarize:
-            return {"embedding": (embedding > 0).float()}
+            return {"embedding": (embedding > 0).float(), "router_logits": router_logits, "router_loss": router_loss, "tokens_per_expert": tokens_per_expert}
         elif normalize:
-            return {"embedding": F.normalize(embedding, dim=-1)}
+            return {"embedding": F.normalize(embedding, dim=-1), "router_logits": router_logits, "router_loss": router_loss, "tokens_per_expert": tokens_per_expert}
         else:
-            return {"embedding": embedding}
+            return {"embedding": embedding, "router_logits": router_logits, "router_loss": router_loss, "tokens_per_expert": tokens_per_expert}

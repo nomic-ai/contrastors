@@ -8,7 +8,7 @@
 import logging
 import os
 from functools import partial
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -19,16 +19,19 @@ from flash_attn.ops.rms_norm import RMSNorm, rms_norm
 from safetensors.torch import load_file as safe_load_file
 from transformers import GPT2Config, PreTrainedModel
 from transformers.models.bert.modeling_bert import (
-    BaseModelOutputWithPoolingAndCrossAttentions,
     BertForPreTrainingOutput,
     SequenceClassifierOutput,
 )
+from transformers.modeling_outputs import ModelOutput
+from dataclasses import dataclass
 
 from contrastors.layers import Block
 from contrastors.layers.embedding import BertEmbeddings
 from contrastors.models.encoder.bert import remap_bert_state_dict
 from contrastors.models.encoder.configuration_nomic_bert import NomicBertConfig
 from contrastors.models.model_utils import filter_shapes, state_dict_from_pretrained
+from megablocks.layers.arguments import Arguments
+from megablocks.layers import moe
 
 try:
     from flash_attn.ops.fused_dense import FusedDense
@@ -47,6 +50,19 @@ except ImportError:
 
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class NomicBertMoEOutput(ModelOutput):
+    last_hidden_state: torch.FloatTensor = None
+    pooler_output: torch.FloatTensor = None
+    hidden_states: Optional[Tuple[torch.FloatTensor, ...]] = None
+    past_key_values: Optional[Tuple[Tuple[torch.FloatTensor]]] = None
+    attentions: Optional[Tuple[torch.FloatTensor, ...]] = None
+    cross_attentions: Optional[Tuple[torch.FloatTensor, ...]] = None
+    router_logits: Optional[List[torch.FloatTensor]] = None
+    router_loss: Optional[torch.FloatTensor] = None
+    tokens_per_expert: Optional[torch.LongTensor] = None
 
 
 class NomicBertPreTrainedModel(PreTrainedModel):
@@ -104,8 +120,27 @@ class NomicBertPreTrainedModel(PreTrainedModel):
         if num_labels:
             config.num_labels = num_labels
 
+
+        resid_pdrop = kwargs.pop("resid_pdrop", None)
+        if resid_pdrop is not None:
+            config.moe_resid_pdrop = resid_pdrop
+        if pad_vocab_size_multiple := kwargs.pop("pad_vocab_size_multiple", None) or getattr(config, "pad_vocab_size_multiple", None):
+            config.pad_vocab_size_multiple = pad_vocab_size_multiple
+
+        if kwargs.get("num_experts", 0) > 0:
+            config.num_experts = kwargs.pop("num_experts")
+            config.moe_top_k = kwargs.pop("moe_top_k")
+            config.router_aux_loss_coef = kwargs.pop("router_aux_loss_coef")
+            config.moe_impl = kwargs.pop("moe_impl", "megablocks")
+            config.ffn_div = kwargs.pop("ffn_div", 1.0)
+            config.moe_normalize_expert_weights = kwargs.pop("moe_normalize_expert_weights", False)
+            config.expert_choice_router = kwargs.pop("expert_choice_router", False)
+            config.num_shared_experts = kwargs.pop("num_shared_experts", 0)
+            config.moe_every_n_layers = kwargs.pop("moe_every_n_layers", 1)
+
         if "add_pooling_layer" in kwargs:
-            model = cls(config, *inputs, add_pooling_layer=kwargs.pop("add_pooling_layer"))
+            config.add_pooling_layer = kwargs.pop("add_pooling_layer")
+            model = cls(config, *inputs, add_pooling_layer=config.add_pooling_layer)
         else:
             model = cls(config, *inputs)
         # TODO: fix this
@@ -137,7 +172,106 @@ class NomicBertPreTrainedModel(PreTrainedModel):
             if ignore_mismatched_shapes:
                 state_dict = filter_shapes(state_dict, model)
 
+            if getattr(config, "num_experts", 0) > 0:
+                moe_impl = getattr(config, "moe_impl", "megablocks")
+                if moe_impl == "contrastors":
+                    raise NotImplementedError("Contrastors MoE not supported")
+
+                # our "gate" layer is fc12
+                # megablocks sparse glu mlp has w1, w2, and v1
+                # fc12 -> w1, fc11 -> v1, fc2 -> w2
+                # we also need to expand the weights so they're num_experts times larger
+                # and rename to encoder.layers.{i}.mlp.experts.mlp.w1
+                elif moe_impl == "megablocks":
+                    shared_experts = config.num_shared_experts
+                    num_experts = config.num_experts - shared_experts
+                    ffn_dim = config.n_inner // config.ffn_div
+                    num_repeats = (ffn_dim * num_experts) // config.n_inner
+                    remainder = (ffn_dim * num_experts) % config.n_inner
+                    for layer_num in range(config.n_layer):
+                        if config.moe_every_n_layers > 1 and layer_num % config.moe_every_n_layers == 0:
+                            continue
+
+                        mlp_layers = [layer for layer in state_dict.keys() if f"encoder.layers.{layer_num}.mlp" in layer]
+                        for layer_name in mlp_layers:
+                            existing_layer = state_dict.pop(layer_name)
+                            expert_layer = existing_layer.clone()
+                            if "fc12" in layer_name:
+                                w1 = expert_layer.repeat(num_repeats, 1)
+                                if remainder > 0:
+                                    mean_w1 = expert_layer.view(remainder, config.n_inner // remainder, -1)
+                                    mean_w1 = mean_w1.mean(dim=1)
+                                    w1 = torch.cat([w1, mean_w1], dim=0)
+                                new_name = layer_name.replace("fc12.weight", "experts.mlp.w1")
+                                state_dict[new_name] = w1
+                            elif "fc11" in layer_name:
+                                v1 = expert_layer.repeat(num_repeats, 1)
+                                if remainder > 0:
+                                    mean_v1 = expert_layer.view(remainder, config.n_inner // remainder, -1)
+                                    mean_v1 = mean_v1.mean(dim=1)
+                                    v1 = torch.cat([v1, mean_v1], dim=0)
+                                new_name = layer_name.replace("fc11.weight", "experts.mlp.v1")
+                                state_dict[new_name] = v1
+                            elif "fc1" in layer_name:
+                                w1 = expert_layer.repeat(num_repeats, 1)
+                                if remainder > 0:
+                                    mean_w1 = expert_layer.view(remainder, config.n_inner // remainder, -1)
+                                    mean_w1 = mean_w1.mean(dim=1)
+                                    w1 = torch.cat([w1, mean_w1], dim=0)
+                                new_name = layer_name.replace("fc1.weight", "experts.mlp.w1")
+                                state_dict[new_name] = w1
+                            elif "fc2" in layer_name:
+                                w2 = expert_layer.repeat(1, num_repeats).T
+                                if remainder > 0:
+                                    mean_w2 = expert_layer.view(remainder, config.n_inner // remainder, -1)
+                                    mean_w2 = mean_w2.mean(dim=1)
+                                    w2 = torch.cat([w2, mean_w2], dim=0)
+                                new_name = layer_name.replace("fc2.weight", "experts.mlp.w2")
+                                state_dict[new_name] = w2
+
+                            # TODO: what to do with shared expert init?
+                            if shared_experts > 0:
+                                shared_layer = existing_layer.clone()
+                                shared_layer = shared_layer.repeat(shared_experts, 1)
+                                if "fc12" in layer_name:
+                                    new_name = layer_name.replace("fc12.weight", "shared_expert.gate_proj.weight")
+                                    if remainder > 0:
+                                        mean_w1 = expert_layer.view(remainder, config.n_inner // remainder, -1)
+                                        mean_w1 = mean_w1.mean(dim=1)
+                                        shared_layer = mean_w1
+
+                                elif "fc11" in layer_name:
+                                    new_name = layer_name.replace("fc11.weight", "shared_expert.up_proj.weight")
+                                    if remainder > 0:
+                                        mean_v1 = expert_layer.view(remainder, config.n_inner // remainder, -1)
+                                        mean_v1 = mean_v1.mean(dim=1)
+                                        shared_layer = mean_v1
+                                elif "fc2" in layer_name:
+                                    new_name = layer_name.replace("fc2.weight", "shared_expert.down_proj.weight")
+                                    if remainder > 0:
+                                        mean_w2 = expert_layer.view(remainder, config.n_inner // remainder, -1)
+                                        mean_w2 = mean_w2.mean(dim=1)
+                                        shared_layer = mean_w2.T
+                                    else:
+                                        shared_layer = shared_layer.T
+
+                                state_dict[new_name] = shared_layer
+
+                else:
+                    raise ValueError(f"Unsupported moe_impl: {moe_impl}")
+                strict = False
             load_return = model.load_state_dict(state_dict, strict=strict)
+
+            if getattr(config, "num_experts", 0) > 0:
+                router_keys = [k for k in model.state_dict().keys() if "router" in k]
+                if moe_impl == "contrastors":
+                    bias_keys = [k for k in model.state_dict().keys() if "mlp.bias" in k]
+                else:
+                    bias_keys = [k for k in model.state_dict().keys() if "experts.bias" in k]
+
+                all_missing = set(router_keys + bias_keys)
+                assert set(load_return.missing_keys) - all_missing == set(), f"Missing keys: {set(load_return.missing_keys) - all_missing}"
+                
         logger.warning(load_return)
         return model
 
@@ -161,7 +295,12 @@ def _init_weights(module, initializer_range=0.02):
 class NomicBertEncoder(NomicBertPreTrainedModel):
     def __init__(self, config: GPT2Config):
         super().__init__(config)
-        self.layers = nn.ModuleList([Block(config) for _ in range(config.n_layer)])
+        if getattr(config, "moe_every_n_layers", 0) > 0:
+            every_n = config.moe_every_n_layers
+            self.layers = nn.ModuleList([Block(config, moe=i%every_n == 1) for i in range(config.n_layer)])
+        else:
+            self.layers = nn.ModuleList([Block(config, moe=False) for _ in range(config.n_layer)])
+
         self.gradient_checkpointing = False
         self.config = config
 
@@ -190,8 +329,13 @@ class NomicBertEncoder(NomicBertPreTrainedModel):
         residual = None
 
         batch, seqlen = hidden_states.shape[:2]
-        hidden_states, indices, cu_seqlens, max_seqlen_in_batch = unpad_input(hidden_states, attention_mask)
-        for i, layer in enumerate(self.layers):
+        if not self.gradient_checkpointing and getattr(self.config, "moe_every_n_layers", 0) <= 0:
+            hidden_states, indices, cu_seqlens, max_seqlen_in_batch = unpad_input(hidden_states, attention_mask)
+        else:
+            indices, cu_seqlens, max_seqlen_in_batch = None, None, None
+
+        all_router_logits = []
+        for _, layer in enumerate(self.layers):
             if self.gradient_checkpointing and self.training:
 
                 def create_custom_forward(module):
@@ -201,7 +345,7 @@ class NomicBertEncoder(NomicBertPreTrainedModel):
 
                     return custom_forward
 
-                hidden_states, hidden_states2, residual = torch.utils.checkpoint.checkpoint(
+                hidden_states, hidden_states2, residual, router_outputs = torch.utils.checkpoint.checkpoint(
                     create_custom_forward(layer),
                     hidden_states,
                     hidden_states2,
@@ -221,7 +365,7 @@ class NomicBertEncoder(NomicBertPreTrainedModel):
                 )
 
             else:
-                hidden_states, hidden_states2, residual = layer(
+                hidden_states, hidden_states2, residual, router_outputs = layer(
                     hidden_states,
                     hidden_states2,
                     residual,
@@ -237,9 +381,18 @@ class NomicBertEncoder(NomicBertPreTrainedModel):
                     kv_indices=kv_indices,
                     kv_cu_seqlens=kv_cu_seqlens,
                     kv_max_seqlen=kv_max_seqlen,
+                    batch=batch,
+                    seqlen=seqlen,
+                    indices=indices,
                 )
-        hidden_states = pad_input(hidden_states, indices, batch, seqlen)
-        return hidden_states
+
+            if router_outputs is not None:
+                all_router_logits.append(router_outputs)   
+            
+        if indices is not None:
+            hidden_states = pad_input(hidden_states, indices, batch, seqlen)
+
+        return hidden_states, all_router_logits
 
 
 class NomicBertPooler(nn.Module):
@@ -380,7 +533,6 @@ class NomicBertModel(NomicBertPreTrainedModel):
         else:
             hidden_states = layer_norm(hidden_states, self.emb_ln.weight, self.emb_ln.bias, self.emb_ln.eps)
         hidden_states = self.emb_drop(hidden_states)
-
         if masked_tokens_mask is not None:
             batch_size, seqlen = input_ids.shape[:2]
             # We also need the first column for the CLS token
@@ -390,8 +542,7 @@ class NomicBertModel(NomicBertPreTrainedModel):
         else:
             subset_mask = None
 
-        sequence_output = self.encoder(hidden_states, attention_mask=attention_mask)
-
+        sequence_output, router_outputs = self.encoder(hidden_states, attention_mask=attention_mask)
         if masked_tokens_mask is None:
             pooled_output = self.pooler(sequence_output) if self.pooler is not None else None
         else:
@@ -405,9 +556,34 @@ class NomicBertModel(NomicBertPreTrainedModel):
                 sequence_output = sequence_output[masked_tokens_mask[subset_mask]]
             pooled_output = self.pooler(pool_input, pool=False) if self.pooler is not None else None
 
-        return BaseModelOutputWithPoolingAndCrossAttentions(
+        if not router_outputs and getattr(self.config, "num_experts", 0) > 0 and self.training and self.config.router_aux_loss_coef > 0:
+            if self.config.expert_choice_router:
+                router_loss, tokens_per_expert = None, None
+            else:
+                megablocks_args = Arguments(
+                    moe_num_experts=self.config.num_experts,
+                    moe_top_k=self.config.moe_top_k,
+                    hidden_size=self.config.n_embd,
+                    ffn_hidden_size=self.config.n_inner,
+                    num_layers=self.config.n_layer // self.config.moe_every_n_layers,
+                    moe_loss_weight=self.config.router_aux_loss_coef,
+                    mlp_type="glu" if self.config.activation_function == "swiglu" else "mlp",
+                    fp16=False,
+                    bf16=True,
+                    return_bias=False,
+                )
+                router_loss, tokens_per_expert = moe.batched_load_balancing_loss(megablocks_args)
+                moe.clear_load_balancing_loss()
+
+        else:
+            router_loss, tokens_per_expert = None, None
+
+        return NomicBertMoEOutput(
             last_hidden_state=sequence_output,
             pooler_output=pooled_output,
+            router_logits=router_outputs,
+            router_loss=router_loss,
+            tokens_per_expert=tokens_per_expert,
         )
 
 
@@ -494,7 +670,7 @@ class NomicBertForPreTraining(NomicBertPreTrainedModel):
 
 
 class NomicBertForSequenceClassification(NomicBertPreTrainedModel):
-    def __init__(self, config):
+    def __init__(self, config, add_pooling_layer=True):
         super().__init__(config)
         self.num_labels = config.num_labels
         self.config = config
@@ -505,7 +681,7 @@ class NomicBertForSequenceClassification(NomicBertPreTrainedModel):
         if self.last_layer_subset:
             assert self.dense_seq_output, "last_layer_subset requires dense_seq_output"
 
-        self.bert = NomicBertModel(config)
+        self.bert = NomicBertModel(config, add_pooling_layer=add_pooling_layer)
         classifier_dropout = getattr(config, "classifier_dropout", config.embd_pdrop)
         self.dropout = nn.Dropout(classifier_dropout)
         self.classifier = nn.Linear(config.n_embd, config.num_labels)

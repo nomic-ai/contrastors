@@ -6,7 +6,10 @@ from contrastors.models.vit import ViTModel, dino_config_to_vit_config
 
 
 # NOTE: giant doesn't work somehow, need to fix
-@pytest.mark.parametrize("model_name", ["facebook/dinov2-small", "facebook/dinov2-base", "facebook/dinov2-large"])
+@pytest.mark.parametrize(
+    "model_name",
+    ["facebook/dinov2-small", "facebook/dinov2-base", "facebook/dinov2-large"],
+)
 def test_dinov2_forward(model_name):
     config = AutoConfig.from_pretrained(model_name)
     config = dino_config_to_vit_config(config)

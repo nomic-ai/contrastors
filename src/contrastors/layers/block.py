@@ -7,10 +7,14 @@ import torch.nn.functional as F
 from flash_attn.ops.layer_norm import dropout_add_layer_norm, dropout_add_layer_norm_parallel_residual
 from flash_attn.ops.rms_norm import RMSNorm, dropout_add_rms_norm, dropout_add_rms_norm_parallel_residual
 from torchvision.ops import StochasticDepth
+from flash_attn.bert_padding import pad_input, unpad_input
 
 from contrastors.layers.activations import quick_gelu
 from contrastors.layers.attention import FlashAttention
 from contrastors.layers.mlp import MLP, GatedMLP
+from contrastors.layers.moe import MoEBlock
+from megablocks.layers import dmoe
+from megablocks.layers.arguments import Arguments
 
 
 class ParallelBlock(nn.Module):
@@ -149,6 +153,7 @@ class Block(nn.Module):
         config,
         drop_path_rate1=0.0,
         drop_path_rate2=0.0,
+        moe=False,
     ):
         """
         For prenorm=True, this Block has a slightly different structure compared to a regular
@@ -165,6 +170,8 @@ class Block(nn.Module):
         See more: https://github.com/Dao-AILab/flash-attention/issues/216#issuecomment-1546638138
         """
         super().__init__()
+        self.config = config
+        self.moe = moe
         self.prenorm = config.prenorm
         self.fused_dropout_add_ln = config.fused_dropout_add_ln
         self.is_decoder = getattr(config, "is_decoder", False)
@@ -180,34 +187,67 @@ class Block(nn.Module):
                 else (quick_gelu if config.activation_function == "quick_gelu" else F.gelu)
             )
         )
-        if config.activation_function in ["glu", "swiglu", "geglu"]:
-            self.mlp = GatedMLP(
-                config.n_embd,
-                hidden_features=config.n_inner,
-                bias1=config.mlp_fc1_bias,
-                bias2=config.mlp_fc2_bias,
-                activation=activation,
-                fused_bias_fc=config.fused_bias_fc,
-                norm_layer=getattr(config, "norm_mlp", False),
-            )
-        else:
-            self.mlp = MLP(
-                config.n_embd,
-                hidden_features=config.n_inner,
-                bias1=config.mlp_fc1_bias,
-                bias2=config.mlp_fc2_bias,
-                activation=activation,
-                fused_bias_fc=config.fused_bias_fc,
-            )
+        # TODO: add MoELayer here
+        # TODO: figure if we need to pass attention mask too
+        if getattr(config, "num_experts", 0) > 0 and moe:
+            if getattr(config, "moe_impl", "megablocks") == "megablocks":
+                shared_experts = config.num_shared_experts
+                num_experts = config.num_experts - shared_experts
+                top_k = config.moe_top_k - shared_experts
+                megablocks_args = Arguments(
+                    moe_num_experts=num_experts,
+                    moe_top_k=top_k,
+                    hidden_size=config.n_embd,
+                    ffn_hidden_size=config.n_inner // config.ffn_div,
+                    num_layers=config.n_layer,
+                    moe_normalize_expert_weights=config.moe_normalize_expert_weights,
+                    activation_fn=activation,
+                    mlp_type="glu" if config.activation_function == "swiglu" else "mlp",
+                    fp16=False,
+                    bf16=False,
+                    return_bias=False,
+                    moe_loss_weight=0.0 if config.expert_choice_router else config.router_aux_loss_coef,
+                    shared_expert=shared_experts > 0,
+                    shared_expert_hidden_size=(config.n_inner // config.ffn_div) * shared_experts,
+                    shared_expert_weighted_sum=True,
+                )
+                self.mlp = dmoe.dMoE(megablocks_args)
+            else:
+                self.mlp = MoEBlock(config)
 
-        self.dropout1 = nn.Dropout(config.resid_pdrop)
+            self.dropout1 = nn.Dropout(getattr(config, "moe_resid_pdrop", config.resid_pdrop))
+            self.dropout2 = nn.Dropout(getattr(config, "moe_resid_pdrop", config.resid_pdrop))
+
+        else:
+            if config.activation_function in ["glu", "swiglu", "geglu"]:
+                self.mlp = GatedMLP(
+                    config.n_embd,
+                    hidden_features=config.n_inner,
+                    bias1=config.mlp_fc1_bias,
+                    bias2=config.mlp_fc2_bias,
+                    activation=activation,
+                    fused_bias_fc=config.fused_bias_fc,
+                    norm_layer=getattr(config, "norm_mlp", False),
+                )
+            else:
+                self.mlp = MLP(
+                    config.n_embd,
+                    hidden_features=config.n_inner,
+                    bias1=config.mlp_fc1_bias,
+                    bias2=config.mlp_fc2_bias,
+                    activation=activation,
+                    fused_bias_fc=config.fused_bias_fc,
+                )
+
+            self.dropout1 = nn.Dropout(config.resid_pdrop)
+            self.dropout2 = nn.Dropout(config.resid_pdrop)
+
         norm_cls = partial(
             nn.LayerNorm if not config.use_rms_norm else RMSNorm,
             eps=config.layer_norm_epsilon,
         )
         self.norm1 = norm_cls(config.n_embd)
         self.norm2 = norm_cls(config.n_embd)
-        self.dropout2 = nn.Dropout(config.resid_pdrop)
         self.residual_in_fp32 = getattr(config, "residual_in_fp32", False)
 
         self.drop_path1 = StochasticDepth(drop_path_rate1, mode="row") if drop_path_rate1 > 0.0 else nn.Identity()
@@ -236,6 +276,9 @@ class Block(nn.Module):
         kv_cu_seqlens: Optional[torch.LongTensor] = None,
         kv_max_seqlen: Optional[int] = None,
         rope: Optional[torch.Tensor] = None,
+        batch: Optional[int] = None,
+        seqlen: Optional[int] = None,
+        indices: Optional[torch.Tensor] = None,
     ):
         r"""Pass the input through the encoder layer.
 
@@ -246,6 +289,7 @@ class Block(nn.Module):
         fused_add_norm_fn = (
             dropout_add_rms_norm if RMSNorm and isinstance(self.norm1, RMSNorm) else dropout_add_layer_norm
         )
+        router_logits = None
         if self.prenorm:
             if not self.fused_dropout_add_ln:
                 dropped = self.drop_path1(self.dropout1(hidden_states))
@@ -324,12 +368,24 @@ class Block(nn.Module):
                     prenorm=True,
                     residual_in_fp32=self.residual_in_fp32,
                 )
-            hidden_states = self.mlp(hidden_states)
+            if self.moe:
+                # expert choice we don't need to repad and pass attention mask
+                # we zero out masked-tokens
+                mlp_out = self.mlp(hidden_states, attention_mask)
+
+                if isinstance(hidden_states, tuple):
+                    hidden_states, router_logits = hidden_states
+
+            else:
+                hidden_states = self.mlp(hidden_states)
+
+            if isinstance(hidden_states, tuple):
+                hidden_states, router_logits = hidden_states
 
             if self.layer_scale:
                 hidden_states = hidden_states * self.ls2
 
-            return hidden_states, None, residual
+            return hidden_states, None, residual, router_logits
         else:
             assert residual is None
             attn_outputs = self.attn(
@@ -373,7 +429,16 @@ class Block(nn.Module):
                     rowscale=rowscale1,
                     prenorm=False,
                 )
-            mlp_out = self.mlp(hidden_states)
+
+            if self.moe:
+                mlp_out = self.mlp(hidden_states, attention_mask)
+
+                if isinstance(mlp_out, tuple):
+                    mlp_out, router_logits = mlp_out
+            else:
+                mlp_out = self.mlp(hidden_states, attention_mask)
+
+
             if not self.fused_dropout_add_ln:
                 hidden_states = self.norm2(
                     (self.drop_path2(self.dropout2(mlp_out)) + hidden_states).to(dtype=self.norm2.weight.dtype)
@@ -395,4 +460,4 @@ class Block(nn.Module):
                     rowscale=rowscale2,
                     prenorm=False,
                 )
-            return hidden_states, None, None
+            return hidden_states, None, None, router_logits

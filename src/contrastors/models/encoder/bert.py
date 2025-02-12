@@ -46,6 +46,7 @@ def bert_config_to_nomic_config(bert_config: BertConfig) -> NomicBertConfig:
         dense_seq_output=True,
         pad_vocab_size_multiple=getattr(bert_config, "pad_vocab_to_multiple_of", 1),
         rotary_scaling_factor=getattr(bert_config, "rotary_scaling_factor", None),
+        pad_token_id=bert_config.pad_token_id,
     )
 
 
@@ -65,7 +66,7 @@ def nomic_config_to_bert_config(gpt2_config: NomicBertConfig) -> BertConfig:
         layer_norm_eps=gpt2_config.layer_norm_epsilon,
         # The following attributes do not have a direct equivalent in GPT2Config
         # and are set to commonly used defaults for BertConfig
-        pad_token_id=0,
+        pad_token_id=gpt2_config.pad_token_id,
         position_embedding_type="absolute",
         use_cache=True,
     )
@@ -81,6 +82,10 @@ def remap_bert_state_dict(
     """
     Map the state_dict of a Huggingface BERT model to be flash_attn compatible.
     """
+    def remap_roberta_prefix(key):
+        return re.sub(r"^roberta.", "bert.", key)
+
+    state_dict = OrderedDict((remap_roberta_prefix(k), v) for k, v in state_dict.items())
 
     def add_bert_prefix(key):
         # prepend bert. to the key
@@ -89,6 +94,7 @@ def remap_bert_state_dict(
         return f"bert.{key}"
 
     state_dict = OrderedDict((add_bert_prefix(k), v) for k, v in state_dict.items())
+
 
     # LayerNorm
     def key_mapping_ln_gamma_beta(key):
@@ -172,7 +178,16 @@ def remap_bert_state_dict(
     state_dict = OrderedDict((key_mapping_attn(k), v) for k, v in state_dict.items())
 
     def key_mapping_decoder_bias(key):
-        return re.sub(r"^cls.predictions.bias", "cls.predictions.decoder.bias", key)
+        # Original mapping
+        key = re.sub(r"^cls.predictions.bias", "cls.predictions.decoder.bias", key)
+        
+        # New mappings for lm_head to cls
+        key = re.sub(r"^bert.lm_head.bias", "cls.predictions.decoder.bias", key)
+        key = re.sub(r"^bert.lm_head.dense.(weight|bias)", r"cls.predictions.transform.dense.\1", key)
+        key = re.sub(r"^bert.lm_head.layer_norm.(weight|bias)", r"cls.predictions.transform.layer_norm.\1", key)
+        key = re.sub(r"^bert.lm_head.decoder.weight", "cls.predictions.decoder.weight", key)
+        
+        return key
 
     # remove nsp weights, we don't use
     state_dict.pop("cls.seq_relationship.weight", None)
@@ -218,9 +233,18 @@ def remap_bert_state_dict(
         pooler_weights = [
             "bert.pooler.dense.weight",
             "bert.pooler.dense.bias",
+            "bert.lm_head.bias", 
+            "bert.lm_head.dense.weight", 
+            "bert.lm_head.dense.bias", 
+            "bert.lm_head.layer_norm.weight", 
+            "bert.lm_head.layer_norm.bias", 
+            "bert.lm_head.decoder.weight"
         ]
         for key in pooler_weights:
             state_dict.pop(key, None)
+
+    if getattr(config, "rotary_emb_fraction", 0.0) > 0.0:
+        state_dict.pop("bert.embeddings.position_embeddings.weight", None)
 
     if remove_bert:
 

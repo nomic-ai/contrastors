@@ -1,7 +1,7 @@
 datasets:
   - name: "reddit_title_body"
     bucket: "s3://contrastive-index-filtered/reddit_full/shard-{00000..00666}.jsonl.gz"
-    query_only: true
+    
     query_prefix: "clustering"
     document_prefix: "clustering"
     objective:
@@ -10,7 +10,7 @@ datasets:
 
   - name: "amazon_reviews"
     bucket: "s3://contrastive-index-filtered/amazon_reviews_full/shard-{00000..393}.jsonl.gz"
-    query_only: true
+    
     query_prefix: "classification"
     document_prefix: "classification"
     objective:
@@ -27,7 +27,7 @@ datasets:
 
   - name: "s2orc_citation_titles"
     bucket: "s3://contrastive-index-filtered/s2orc_citation_title_full/shard-{00000..00077}.jsonl.gz"
-    query_only: true
+    
     query_prefix: "clustering"
     document_prefix: "clustering"
     objective:
@@ -36,7 +36,7 @@ datasets:
 
   - name: "s2orc_title_abstract"
     bucket: "s3://contrastive-index-filtered/s2orc_title_abstract_full/shard-{00000..00360}.jsonl.gz"
-    query_only: true
+    
     query_prefix: "clustering"
     document_prefix: "clustering"
     objective:
@@ -45,7 +45,7 @@ datasets:
 
   - name: "s2orc_abstract_citation"
     bucket: "s3://contrastive-index-filtered/s2orc_abstract_citation_full/shard-{00000..00076}.jsonl.gz"
-    query_only: true
+    
     query_prefix: "clustering"
     document_prefix: "clustering"
     objective:
@@ -54,7 +54,7 @@ datasets:
 
   - name: "s2orc_abstract_body"
     bucket: "s3://contrastive/s2orc_abstract_body_index_filtered/shard-{00000..00071}.jsonl.gz"
-    query_only: true
+    
     query_prefix: "clustering"
     document_prefix: "clustering"
     objective:
@@ -64,7 +64,7 @@ datasets:
   # sets of duplicate questions
   - name: "wikianswers"
     bucket: "s3://contrastive-index-filtered/wikianswers_full/shard-{00000..00100}.jsonl.gz"
-    query_only: true
+    
     query_prefix: "classification"
     document_prefix: "classification"
     objective:
@@ -73,7 +73,7 @@ datasets:
 
   - name: "wikipedia"
     bucket: "s3://contrastive-index-filtered/wiki_title_body_full/shard-{00000..0061}.jsonl.gz"
-    query_only: true
+    
     query_prefix: "classification"
     document_prefix: "classification"
     objective:
@@ -90,7 +90,7 @@ datasets:
 
   - name: "codesearch"
     bucket: "s3://contrastive-index-filtered/codesearch_full/shard-{00000..00008}.jsonl.gz"
-    query_only: true
+    
     query_prefix: "clustering"
     document_prefix: "clustering"
     objective:
@@ -107,7 +107,7 @@ datasets:
 
   - name: "agnews"
     bucket: "s3://contrastive-index-filtered/agnews_full/shard-{00000..00004}.jsonl.gz"
-    query_only: true
+    
     query_prefix: "classification"
     document_prefix: "classification"
     objective:
@@ -140,7 +140,7 @@ datasets:
 
   - name: "ccnews"
     bucket: "s3://contrastive-index-filtered/ccnews_full/shard-{00000..00003}.jsonl.gz"
-    query_only: true
+    
     query_prefix: "classification"
     document_prefix: "classification"
     objective:
@@ -149,7 +149,7 @@ datasets:
 
   - name: "npr"
     bucket: "s3://contrastive-index-filtered/npr_full/shard-{00000..00003}.jsonl.gz"
-    query_only: true
+    
     query_prefix: "classification"
     document_prefix: "classification"
     objective:
@@ -166,7 +166,7 @@ datasets:
 
   - name: "cnn"
     bucket: "s3://contrastive-index-filtered/cnn_full/shard-{00000..00002}.jsonl.gz"
-    query_only: true
+    
     query_prefix: "classification"
     document_prefix: "classification"
     objective:
@@ -175,7 +175,7 @@ datasets:
 
   - name: "stackexchange_duplicate_questions"
     bucket: "s3://contrastive-index-filtered/stackexchange_question_question_full/shard-00000.jsonl.gz"
-    query_only: true
+    
     query_prefix: "clustering"
     document_prefix: "clustering"
     objective:
@@ -184,7 +184,7 @@ datasets:
 
   - name: "stackexchange_title_body"
     bucket: "s3://contrastive-index-filtered/stackexchange_title_body_full/shard-00000.jsonl.gz"
-    query_only: true
+    
     query_prefix: "clustering"
     document_prefix: "clustering"
     objective:
@@ -193,7 +193,7 @@ datasets:
 
   - name: "stackexchange_body_body"
     bucket: "s3://contrastive-index-filtered/stackexchange_body_body_full/shard-00000.jsonl.gz"
-    query_only: true
+    
     query_prefix: "clustering"
     document_prefix: "clustering"
     objective:
@@ -202,7 +202,7 @@ datasets:
 
   - name: "sentence_compression"
     bucket: "s3://contrastive-index-filtered/sentence_compression_full/shard-{00000..00001}.jsonl.gz"
-    query_only: true
+    
     query_prefix: "classification"
     document_prefix: "classification"
     objective:
@@ -211,7 +211,7 @@ datasets:
 
   - name: "wikihow"
     bucket: "s3://contrastive-index-filtered/wikihow_full/shard-00000.jsonl.gz"
-    query_only: true
+    
     query_prefix: "classification"
     document_prefix: "classification"
     objective:
@@ -220,7 +220,7 @@ datasets:
 
   - name: "altlex"
     bucket: "s3://contrastive-index-filtered/altlex_full/shard-00000.jsonl.gz"
-    query_only: true
+    
     query_prefix: "classification"
     document_prefix: "classification"
     objective:
@@ -229,7 +229,7 @@ datasets:
 
   - name: "quora"
     bucket: "s3://contrastive-index-filtered/quora_full/shard-00000.jsonl.gz"
-    query_only: true
+    
     query_prefix: "classification"
     document_prefix: "classification"
     objective:
@@ -238,7 +238,7 @@ datasets:
 
   - name: "simplewiki"
     bucket: "s3://contrastive-index-filtered/simplewiki_full/shard-00000.jsonl.gz"
-    query_only: true
+    
     query_prefix: "classification"
     document_prefix: "classification"
     objective:

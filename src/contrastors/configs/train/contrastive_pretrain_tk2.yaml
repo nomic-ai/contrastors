@@ -1,0 +1,50 @@
+train_args:
+  num_epochs: 1 
+  learning_rate: 2.0e-4
+  weight_decay: 0.01
+  warmup_steps: 700
+  cooldown_steps: null
+  checkpoint: null
+  wandb: true
+  wandb_run_name: "nomic-moe-tk2-256sl-8k"
+  wandb_project_name: "moe-text"
+  wandb_entity: "gpt4all"
+  log_grads_every: 100
+  log_lr_every: 10
+  save_every: 1000000 
+  chunk_size: 128
+  output_dir: "ckpts/nomic-moe-tk2-256sl-8k"
+  # if using deepspeed, this will be ignored
+  schedule_type: "cosine"
+  max_grad_norm: 1.0
+  adam_beta1: 0.9
+  adam_beta2: 0.999
+  grad_cache: false
+  loss_fn: "clip"
+  use_fp8: false
+  clamp_logits: false
+  logit_max: 100
+  router_aux_loss_coef: 10
+
+model_args:
+  logit_scale: 50
+  trainable_logit_scale: false
+  model_type: "encoder"
+  seq_len: 256
+  pooling: "mean"
+  nomic_encoder: true
+  add_prefix: true
+  tokenizer_name: "bert-base-uncased"
+  model_name: "nomic-ai/nomic-bert-2048"
+  pretrained: true
+  gradient_checkpointing: true
+  num_experts: 8 
+  top_k: 2 
+
+data_args:
+  input_shards: "configs/data/contrastive_pretrain.yaml"
+  workers: 0 
+  batch_size: 8192 
+  seed: 42
+  shuffle: false
+  download: true

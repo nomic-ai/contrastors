@@ -80,7 +80,10 @@ def test_clip_convert_to_hf(model_name):
     hf_model = HFViTModel(hf_config).to(dtype=dtype)
     remapped_weights = inverse_remap_state_dict_hf_vit(model.state_dict(), config)
     result = hf_model.load_state_dict(remapped_weights, strict=False)
-    assert result.missing_keys == ['pooler.dense.weight', 'pooler.dense.bias'], result.missing_keys
+    assert result.missing_keys == [
+        "pooler.dense.weight",
+        "pooler.dense.bias",
+    ], result.missing_keys
 
     hf_model = hf_model.cuda().to(dtype=dtype)
     hf_model.eval()

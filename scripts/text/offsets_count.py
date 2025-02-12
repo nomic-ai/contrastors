@@ -1,7 +1,9 @@
-import gzip
+import os
 import json
+import gzip
 from argparse import ArgumentParser
-from pathlib import Path
+import fsspec
+import concurrent.futures
 
 from tqdm import tqdm
 
@@ -12,35 +14,60 @@ def parser_args():
 
     return parser.parse_args()
 
-
-args = parser_args()
-
-data_dir = Path(args.data_dir)
-
-files = sorted(data_dir.glob("shard-*.jsonl.gz"))
-
-counts = {"count_per_file": {}, "total_count": 0}
-offsets = {}
-
-total_count = 0
-for file in tqdm(files):
+    
+def read_jsonl(file, s3):
     idx2offset = {}
-    with gzip.open(file, "rt") as f:
+    count = 0
+    with s3.open(file, "rt", compression="gzip") as f:
         previous = 0
-        curr_count = 0
         for i, line in enumerate(f):
             end = previous + len(line)
             idx2offset[i] = (previous, end)
             previous = end
-            curr_count += 1
+            count += 1
+            
+    return idx2offset, count
 
-    counts["count_per_file"][f"contrastive/{data_dir.name}/{file.name}"] = curr_count
-    offsets[f"contrastive/{data_dir.name}/{file.name}"] = idx2offset
+
+args = parser_args()
+
+s3 = fsspec.filesystem("s3")
+
+data_dir = sorted(s3.ls(args.data_dir))
+
+for path in tqdm(data_dir, desc="Processing languages"):
+    lang = path.split(args.data_dir)[1].split("/")[1]
+    if lang != "ca":
+        continue
 
 
-with open(data_dir / "counts.json", "w") as f:
-    counts["total_count"] = sum(counts["count_per_file"].values())
-    json.dump(counts, f)
+    counts = {"count_per_file": {}, "total_count": 0}
+    offsets = {}
 
-with gzip.open(data_dir / "offsets.json.gz", "wt") as f:
-    json.dump(offsets, f)
+    files = s3.glob(f"{args.data_dir}/{lang}/shard-*.jsonl.gz")
+    total_count = 0
+    pbar = tqdm(total=len(files), desc=f"Processing {lang}") 
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=32) as executor:
+        future2file = {}
+        for file in files:
+            future = executor.submit(read_jsonl, file, s3)
+            future.add_done_callback(lambda _: pbar.update(1))
+            future2file[future] = file
+
+        for future in concurrent.futures.as_completed(future2file):
+            file_idx_offset, file_count = future.result()
+            counts["count_per_file"][future2file[future]] = file_count
+            offsets[future2file[future]] = file_idx_offset
+
+    with s3.open(f"{path}/counts.json", "w") as f:
+        counts["total_count"] = sum(counts["count_per_file"].values())
+        json.dump(counts, f)
+
+    with gzip.open(f"/tmp/{lang}_offsets.json.gz", "wt") as f:
+        json.dump(offsets, f)
+
+    s3.put(f"/tmp/{lang}_offsets.json.gz", f"{path}/offsets.json.gz")
+
+    # Clean up
+    os.remove(f"/tmp/{lang}_offsets.json.gz")

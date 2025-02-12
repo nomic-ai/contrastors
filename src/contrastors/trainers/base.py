@@ -68,6 +68,19 @@ class BaseTrainer(metaclass=ABCMeta):
                 num_params += sum(p.numel() for p in model.parameters() if p.requires_grad)
 
         self.print(f"Trainable parameters: {num_params:,}")
+        if getattr(self.config.model_args, "num_experts", 0) > 0:
+            num_experts = self.config.model_args.num_experts
+            top_k = self.config.model_args.moe_top_k
+            model = self.model["model"]
+            if isinstance(model, (nn.DataParallel, nn.parallel.DistributedDataParallel)):
+                model = model.module
+            num_layers = model.trunk.config.n_layer // self.config.model_args.moe_every_n_layers
+            
+            active_params = num_params
+
+            params_per_expert = sum(p.numel() for p in model.trunk.encoder.layers[1].mlp.experts.mlp.parameters() if p.requires_grad) / num_experts
+            active_params = active_params - num_layers * (num_experts - top_k) * params_per_expert
+            self.print(f"Active parameters: {active_params:,}")
 
         self.dataloaders = self.get_dataloaders(config)
         self.optimizer = self.get_optimizer(config.train_args, ds_config)
@@ -80,7 +93,7 @@ class BaseTrainer(metaclass=ABCMeta):
             )
 
             self.engine = model
-            self.model = {"model": model}
+            self.model = {"model": model, **{k: v for k, v in self.model.items() if k != "model"}}
             if optimizer is not None:
                 self.optimizer = optimizer
             if dataloader is not None:
@@ -147,12 +160,14 @@ class BaseTrainer(metaclass=ABCMeta):
 
     def get_trackers(self, config):
         tracker = None
+        run_name = config.train_args.wandb_run_name
+        if run_name is None:
+            run_name = config.train_args.output_dir.replace("ckpts/", "")
+            config.train_args.wandb_run_name = run_name
         if self.global_rank == 0:
             project_name = config.train_args.wandb_project_name
             entity = config.train_args.wandb_entity
-            run_name = config.train_args.wandb_run_name
-            if run_name is None:
-                run_name = config.train_args.output_dir.replace("ckpts/", "")
+            group = config.train_args.wandb_group
 
             hyperparams = {}
             for key, params in config.dict().items():
@@ -161,7 +176,7 @@ class BaseTrainer(metaclass=ABCMeta):
                 for k, v in params.items():
                     hyperparams[f"{key}_{k}"] = v
 
-            tracker = wandb.init(project=project_name, entity=entity, name=run_name, config=hyperparams)
+            tracker = wandb.init(project=project_name, entity=entity, name=run_name, config=hyperparams, group=group)
 
             if self.num_processes > 1:
                 tracker = DistributedWandbTracker(tracker)
@@ -280,7 +295,7 @@ class BaseTrainer(metaclass=ABCMeta):
 
         else:
             self.print(f"Loading model from {input_dir}/model")
-            self.model["model"] = self.load_model(f"{input_dir}/model")
+            # self.model["model"] = self.load_model(f"{input_dir}/model")
 
             self.print(f"Loading optimizer and scheduler state from {input_dir}/optimizer.pt")
             self.optimizer.load_state_dict(torch.load(f"{input_dir}/optimizer.pt"))
@@ -390,17 +405,24 @@ class BaseTrainer(metaclass=ABCMeta):
         scheduler = self.scheduler
 
         total_num_steps = int(self.total_num_steps)
+        total_training_steps = getattr(self, "total_training_steps", total_num_steps)
         gradient_accumulation_steps = train_args.gradient_accumulation_steps
 
         if train_args.checkpoint:
             self.load_state(train_args.checkpoint)
             # checkpoint will be something like /root/contrastors-dev/src/contrastors/ckpts/unlit-search-query-no-resampled-dfn-2b-vitb-65k-3-epoch/epoch_0
             # split by / and get the last element, then split by _ and get the last element
-            start_epoch = int(train_args.checkpoint.split("/")[-1].split("_")[-1])
+            if "epoch_" in train_args.checkpoint:
+                start_epoch = int(train_args.checkpoint.split("/")[-1].split("_")[-1])
+                initial_step = 0
+            else:
+                initial_step = int(train_args.checkpoint.split("/")[-1].split("_")[-1])
+                start_epoch = 0
         else:
+            initial_step = 0
             start_epoch = 0
 
-        self.print(f"Starting training from epoch {start_epoch}")
+        self.print(f"Starting training from epoch {start_epoch}, step {initial_step=}")
         for epoch in range(start_epoch, train_args.num_epochs):
             if epoch > 0 and getattr(data_config, "streaming", False) is False:
                 # webdataset needs special handling for multi-epoch
@@ -418,10 +440,10 @@ class BaseTrainer(metaclass=ABCMeta):
                 temp_config.data_args.seed = data_config.seed + epoch
                 train_dataloader = self.get_dataloaders(temp_config, epoch=epoch)["train"]
 
-            self.print(f"Total training steps: {self.total_num_steps}")
+            self.print(f"Total training steps: {total_training_steps}")
 
             progbar = tqdm(
-                train_dataloader, desc=f"Epoch {epoch}", disable=not self.global_rank == 0, total=total_num_steps
+                train_dataloader, desc=f"Epoch {epoch}", disable=not self.global_rank == 0, total=total_training_steps, initial=initial_step
             )
 
             # TODO: fix resuming from a checkpoint
@@ -440,8 +462,11 @@ class BaseTrainer(metaclass=ABCMeta):
 
             with context() as p:
                 for step, batch in enumerate(progbar):
+                    if step >= total_training_steps:
+                        break
+
                     # if using deepspeed, it handles gradient accumulation
-                    curr_step = epoch * total_num_steps + step  # + offset
+                    curr_step = epoch * total_training_steps + step + initial_step
 
                     loss = self.training_step(
                         model,
@@ -450,7 +475,7 @@ class BaseTrainer(metaclass=ABCMeta):
                         scheduler,
                         curr_step,
                         train_args,
-                        total_num_steps,
+                        total_training_steps,
                         gradient_accumulation_steps,
                     )
 
@@ -471,14 +496,16 @@ class BaseTrainer(metaclass=ABCMeta):
                         self.log({k: torch.mean(v).item() for k, v in metrics.items()}, step=curr_step)
                     else:
                         self.print(f'Loss: { {k: torch.mean(v).item() for k, v in metrics.items()} }')
-                        self.print(f"LR: {scheduler.get_last_lr()[0]}")
+                        # only print every gradient accumulation steps
+                        if step % gradient_accumulation_steps == 0 and step > 0 or step == total_training_steps - 1:
+                            self.print(f"LR: {scheduler.get_last_lr()[0]}")
 
-                    if val_dataloader:
+                    if val_dataloader is not None:
                         if (
                             step > 0
                             and train_args.eval_strategy == "steps"
                             and train_args.eval_steps > 0
-                            and step % train_args.eval_steps == 0
+                            and (step / gradient_accumulation_steps) % train_args.eval_steps == 0
                         ):
                             self.eval_loop(dataloader=val_dataloader, step=curr_step, **model)
 
@@ -493,7 +520,7 @@ class BaseTrainer(metaclass=ABCMeta):
                     if self.profile and step >= 10:
                         return
 
-            if val_dataloader and train_args.eval_strategy == "epochs":
+            if val_dataloader is not None and train_args.eval_strategy == "epochs":
                 self.eval_loop(dataloader=val_dataloader, step=curr_step, **model)
 
             if train_args.save_every > 0:
@@ -501,6 +528,6 @@ class BaseTrainer(metaclass=ABCMeta):
                 if train_args.num_epochs > 1:
                     self.save_state(f"{train_args.output_dir}/epoch_{epoch}")
 
-        if train_args.num_epochs > 0 and train_args.save_every > 0:
+        if train_args.num_epochs > 1 and train_args.save_every > 0:
             torch.distributed.barrier()
             self.save_model(f"{train_args.output_dir}/final_model")

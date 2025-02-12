@@ -101,12 +101,13 @@ TASK_LIST_STS = [
 ]
 
 TASK_LIST = (
-    TASK_LIST_CLASSIFICATION
-    + TASK_LIST_CLUSTERING
-    + TASK_LIST_PAIR_CLASSIFICATION
-    + TASK_LIST_RERANKING
-    + TASK_LIST_RETRIEVAL
-    + TASK_LIST_STS
+    # TASK_LIST_CLASSIFICATION
+    # + TASK_LIST_CLUSTERING
+    # + TASK_LIST_PAIR_CLASSIFICATION
+    # + TASK_LIST_RERANKING
+    # + TASK_LIST_RETRIEVAL
+    # + TASK_LIST_STS
+    TASK_LIST_RETRIEVAL
 )
 
 
@@ -120,6 +121,8 @@ def parse_args():
     parser.add_argument("--binarize", action="store_true")
     parser.add_argument("--matryoshka_dim", type=int)
     parser.add_argument("--hf_model", action="store_true")
+    parser.add_argument("--query_prefix", type=str, default="search_query: ")
+    parser.add_argument("--document_prefix", type=str, default="search_document: ")
 
     return parser.parse_args()
 
@@ -153,7 +156,7 @@ if __name__ == "__main__":
         task2prefix[task] = {"query": "classification", "document": "classification"}
 
     for task in TASK_LIST_RETRIEVAL:
-        task2prefix[task] = {"query": "search_query", "document": "search_document"}
+        task2prefix[task] = {"query": args.query_prefix, "document": args.document_prefix}
 
     for task in TASK_LIST_STS:
         task2prefix[task] = {"query": "classification", "document": "classification"}
@@ -164,22 +167,23 @@ if __name__ == "__main__":
         eval_splits = ["dev"] if task == "MSMARCO" else ["test"]
         evaluation = MTEB(tasks=[task], task_langs=["en"])  # Remove "en" for running all languages
 
-        model.doc_as_query = task == "QuoraRetrieval"
+        # model.doc_as_query = task == "QuoraRetrieval"
 
-        prefixes = task2prefix[task]
-        model.query_prefix = prefixes["query"]
-        model.docoment_prefix = prefixes["document"]
-        if task in TASK_LIST_CLASSIFICATION and args.no_normalize_classification is False:
-            print("Setting normalize to False")
-            model.set_normalize(False)
-        else:
-            model.set_normalize(True)
+        # prefixes = task2prefix[task]
+        # model.query_prefix = prefixes["query"]
+        # model.docoment_prefix = prefixes["document"]
+        # if task in TASK_LIST_CLASSIFICATION and args.no_normalize_classification is False:
+        #     print("Setting normalize to False")
+        #     model.set_normalize(False)
+        # else:
+        #     model.set_normalize(True)
 
         output_name = f"results/{model_name}binarize_{args.binarize}"
         if args.matryoshka_dim:
             output_name += f"_matryoshka_{args.matryoshka_dim}"
 
-        evaluation.run(model, output_folder=output_name, eval_splits=eval_splits, show_progress_bar=True)
+        evaluation.run(model, output_folder=output_name, eval_splits=eval_splits, show_progress_bar=True, batch_size=16384)
+        breakpoint()
 
     end = time.time()
     print(f"Time taken (mins): {(end-start)/60}")
