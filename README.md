@@ -216,4 +216,13 @@ If you find the model, dataset, or training code useful, please cite our work
       primaryClass={cs.CV},
       url={https://arxiv.org/abs/2406.18587}, 
 }
+@misc{nussbaum2025trainingsparsemixtureexperts,
+      title={Training Sparse Mixture Of Experts Text Embedding Models}, 
+      author={Zach Nussbaum and Brandon Duderstadt},
+      year={2025},
+      eprint={2502.07972},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2502.07972}, 
+}
 ```
