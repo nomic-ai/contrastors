@@ -1144,6 +1144,7 @@ class NomicBertRotaryEmbedding(nn.Module):
         self._sin_cached = None
         self._cos_k_cached = None
         self._sin_k_cached = None
+        self._training_mode_cached = self.training
 
     def _compute_inv_freq(self, device=None):
         return 1.0 / (self.base ** (torch.arange(0, self.dim, 2, device=device, dtype=torch.float32) / self.dim))
@@ -1157,8 +1158,9 @@ class NomicBertRotaryEmbedding(nn.Module):
             or self._cos_cached is None
             or self._cos_cached.device != device
             or self._cos_cached.dtype != dtype
-            or (self.training and self._cos_cached.is_inference())
+            or (self.training != self._training_mode_cached)
         ):
+            self._training_mode_cached = self.training
             self._seq_len_cached = seqlen
             # We want fp32 here, not self.inv_freq.dtype, since the model could be loaded in bf16
             # And the output of arange can be quite large, so bf16 would lose a lot of precision.
@@ -1239,8 +1241,9 @@ class NomicBertDynamicNTKRotaryEmbedding(NomicBertRotaryEmbedding):
             or self._cos_cached is None
             or self._cos_cached.device != device
             or self._cos_cached.dtype != dtype
-            or (self.training and self._cos_cached.is_inference())
+            or (self.training != self._training_mode_cached)
         ):
+            self._training_mode_cached = self.training
             self._seq_len_cached = seqlen
             # We want fp32 here, not self.inv_freq.dtype, since the model could be loaded in bf16
             # And the output of arange can be quite large, so bf16 would lose a lot of precision.
