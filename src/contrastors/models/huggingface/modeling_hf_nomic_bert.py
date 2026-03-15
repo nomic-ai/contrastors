@@ -1672,6 +1672,12 @@ class NomicBertModel(NomicBertPreTrainedModel):
 
         self.apply(partial(_init_weights, initializer_range=config.initializer_range))
 
+    def get_input_embeddings(self):
+        return self.embeddings.word_embeddings
+
+    def set_input_embeddings(self, value):
+        self.embeddings.word_embeddings = value
+
     def forward(
         self,
         input_ids,
